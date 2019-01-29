@@ -27,7 +27,7 @@ function ts(str) {
 // Given a set of hostnames, return a regex that matches Hubs URLs hosted at any of the given
 // hostnames and extracts the hub ID from matching URLs.
 function buildTopicRegex(hostnames) {
-  hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
+  const hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
   return new RegExp(`https?://(?:${hostClauses})/(\\w+)/?\\S*`);
 }
 
@@ -36,8 +36,8 @@ async function subscribeToHubChannel(reticulumClient, hubId) {
   const ch = reticulumClient.channel(`hub:${hubId}`, hubsBotJoinParameters);
   return new Promise((resolve, reject) => {
     ch.join()
-      .receive("ok", res => resolve(ch))
-      .receive("error", res => reject(e));
+      .receive("ok", () => resolve(ch))
+      .receive("error", e => reject(e));
   });
 }
 

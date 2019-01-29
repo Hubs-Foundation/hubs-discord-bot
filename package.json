@@ -12,10 +12,12 @@
   ],
   "author": "Marshall Polaris <marshall@pol.rs>",
   "license": "MPL-2.0",
+  "engines" : { "node" : ">=8.0.0" },
   "dependencies": {
     "discord.js": "^11.4.2",
     "dotenv": "^6.2.0",
     "escape-string-regexp": "^1.0.5",
+    "eslint-plugin-node": "^8.0.1",
     "phoenix-channels": "^1.0.0",
     "uuid": "^3.3.2"
   },

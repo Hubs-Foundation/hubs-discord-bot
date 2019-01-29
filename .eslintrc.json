@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "no-console": "off",
+    "no-process-exit": "off"
+  },
+  "extends": ["eslint:recommended", "plugin:node/recommended"]
+}
