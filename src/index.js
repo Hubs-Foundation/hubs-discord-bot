@@ -60,6 +60,62 @@ async function connectToReticulum(hostname, sessionId) {
   });
 }
 
+async function associateChannel(reticulumClient, reticulumSessionId, bindings, chan, hubId) {
+  const webhook = (await chan.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
+  if (!webhook) {
+    if (VERBOSE) {
+      console.debug(ts(`Discord channel ${chan.id} has a Hubs link in the topic, but no webhook is present.`));
+    }
+    return;
+  }
+
+  console.info(ts(`Hubs room ${hubId} bound to Discord channel ${chan.id}; joining.`));
+  let presences = {}; // client's initial empty presence state
+  const hubSubscription = await subscribeToHubChannel(reticulumClient, hubId);
+  bindings.add(hubId, chan, webhook, hubSubscription);
+  const onUserJoin = (id, current, newPresence) => {
+    const name = newPresence.metas[0].profile.displayName;
+    if (VERBOSE) {
+      console.debug(ts(`Relaying join for ${name} via hub ${hubId} to channel ${chan.id}.`));
+    }
+    chan.send(`${name} joined.`);
+  };
+  const onUserLeave = (id, current, leftPresence) => {
+    const name = leftPresence.metas[0].profile.displayName;
+    if (VERBOSE) {
+      console.debug(ts(`Relaying leave for ${name} via hub ${hubId} to channel ${chan.id}.`));
+    }
+    chan.send(`${name} departed.`);
+  };
+  hubSubscription.on("presence_state", state => {
+    presences = phoenix.Presence.syncState(presences, state, onUserJoin, onUserLeave);
+  });
+  hubSubscription.on("presence_diff", diff => {
+    presences = phoenix.Presence.syncDiff(presences, diff, onUserJoin, onUserLeave);
+  });
+  hubSubscription.on("message", ({ session_id, type, body, from }) => {
+    if (reticulumSessionId === session_id) {
+      return;
+    }
+    const getAuthor = () => {
+      const userInfo = presences[session_id];
+      if (from) {
+        return from;
+      } else if (userInfo) {
+        return userInfo.metas[0].profile.displayName;
+      } else {
+        return "Mystery user";
+      }
+    };
+    const name = getAuthor();
+    if (VERBOSE) {
+      const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${session_id}) via hub ${hubId} to channel ${chan.id}: %j`);
+      console.debug(msg, body);
+    }
+    webhook.send(body, { username: name });
+  });
+}
+
 async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
@@ -79,60 +135,39 @@ async function start() {
   const bindings = new ChannelBindings(hostnames);
   for (let [cid, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     const hubId = bindings.getHub(chan.topic);
-    const webhook = (await chan.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
-    if (hubId && !webhook) {
-      if (VERBOSE) {
-        console.debug(ts(`Discord channel ${cid} has a Hubs link in the topic, but no webhook is present.`));
-      }
-    }
-    if (hubId && webhook) {
-      console.info(ts(`Hubs room ${hubId} bound to Discord channel ${cid}; joining.`));
-      let presences = {}; // client's initial empty presence state
-      const hubSubscription = await subscribeToHubChannel(reticulumClient, hubId);
-      bindings.add(hubId, chan, webhook, hubSubscription);
-      const onUserJoin = (id, current, newPresence) => {
-        const name = newPresence.metas[0].profile.displayName;
-        if (VERBOSE) {
-          console.debug(ts(`Relaying join for ${name} via hub ${hubId} to channel ${cid}.`));
-        }
-        chan.send(`${name} joined.`);
-      };
-      const onUserLeave = (id, current, leftPresence) => {
-        const name = leftPresence.metas[0].profile.displayName;
-        if (VERBOSE) {
-          console.debug(ts(`Relaying leave for ${name} via hub ${hubId} to channel ${cid}.`));
-        }
-        chan.send(`${name} departed.`);
-      };
-      hubSubscription.on("presence_state", state => {
-        presences = phoenix.Presence.syncState(presences, state, onUserJoin, onUserLeave);
-      });
-      hubSubscription.on("presence_diff", diff => {
-        presences = phoenix.Presence.syncDiff(presences, diff, onUserJoin, onUserLeave);
-      });
-      hubSubscription.on("message", ({ session_id, type, body, from }) => {
-        if (reticulumSessionId === session_id) {
-          return;
-        }
-        const getAuthor = () => {
-          const userInfo = presences[session_id];
-          if (from) {
-            return from;
-          } else if (userInfo) {
-            return userInfo.metas[0].profile.displayName;
-          } else {
-            return "Mystery user";
-          }
-        };
-        const name = getAuthor();
-        if (VERBOSE) {
-          const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${session_id}) via hub ${hubId} to channel ${cid}: %j`);
-          console.debug(msg, body);
-        }
-        webhook.send(body, { username: name });
-      });
+    if (hubId) {
+      await associateChannel(reticulumClient, reticulumSessionId, bindings, chan, hubId);
     }
   }
+
+  discordClient.on('channelUpdate', (oldChannel, newChannel) => {
+    const oldHubId = bindings.hubsByChannel[oldChannel.id];
+    const newHubId = bindings.getHub(newChannel.topic);
+    console.log(oldHubId, newHubId);
+    if (!oldHubId && !newHubId) {
+      return;
+    }
+    if (!oldHubId && newHubId) {
+      associateChannel(reticulumClient, reticulumSessionId, bindings, newChannel, newHubId);
+      return;
+    }
+    if (oldHubId && !newHubId) {
+      bindings.stateByHub[oldHubId].subscription.leave();
+      bindings.remove(oldHubId);
+      return;
+    }
+    if (oldHubId && newHubId) {
+      if (oldHubId === newHubId) {
+        return;
+      }
+      if (oldHubId !== newHubId) {
+        bindings.stateByHub[oldHubId].subscription.leave();
+        bindings.remove(oldHubId);
+        associateChannel(reticulumClient, reticulumSessionId, bindings, newChannel, newHubId);
+        return;
+      }
+    }
+  });
 
   discordClient.on('message', msg => {
     if (msg.content === '!duck') {

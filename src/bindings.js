@@ -18,6 +18,13 @@ class ChannelBindings {
     return null;
   }
 
+  // Removes an entry from the mapping.
+  remove(hubId) {
+    const state = this.stateByHub[hubId];
+    delete this.hubsByChannel[state.channel.id];
+    delete this.stateByHub[hubId];
+  }
+
   // Adds a new entry to the mapping.
   add(hubId, channel, webhook, subscription) {
     this.hubsByChannel[channel.id] = hubId;
