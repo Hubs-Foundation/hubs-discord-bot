@@ -41,11 +41,8 @@ async function subscribeToHubChannel(reticulumClient, hubId) {
   });
 }
 
-async function connectToDiscord(token) {
-  const options = {
-    shardId: parseInt(process.env.SHARD_ID, 10),
-    shardCount: parseInt(process.env.SHARD_COUNT, 10)
-  };
+async function connectToDiscord(shardId, shardCount, token) {
+  const options = { shardId, shardCount };
   const client = new discord.Client(options);
   return new Promise((resolve, reject) => {
     client.on("ready", () => resolve(client));
@@ -58,7 +55,7 @@ async function connectToReticulum(hostname, sessionId) {
   const socketSettings = { params: { session_id: sessionId } };
   if (VERBOSE) {
     socketSettings.logger = (kind, msg, data) => {
-      console.log(`${kind}: ${msg}`, data);
+      console.debug(ts(`Phoenix channel event: ${kind}: ${msg}`), data);
     };
   }
 
@@ -72,8 +69,10 @@ async function connectToReticulum(hostname, sessionId) {
 
 async function start() {
 
-  console.info(ts("Connecting to Discord with token..."));
-  const discordClient = await connectToDiscord(process.env.TOKEN);
+  const shardId = parseInt(process.env.SHARD_ID, 10);
+  const shardCount = parseInt(process.env.SHARD_COUNT, 10);
+  console.info(ts(`Connecting to Discord (shard ID: ${shardId}/${shardCount})...`));
+  const discordClient = await connectToDiscord(shardId, shardCount, process.env.TOKEN);
   console.info(ts("Successfully connected to Discord."));
 
   const reticulumSessionId = uuid();
@@ -87,15 +86,27 @@ async function start() {
 
   const hubsByChannel = {};
   const channelsByHub = {};
+  const webhooksByHub = {};
   const subscriptionsByHub = {};
   for (let [cid, chan] of discordClient.channels) {
     if (chan.topic) {
       const match = chan.topic.match(hostRegex);
-      if (match) {
+      const webhook = (await chan.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
+      if (match && !webhook) {
+        if (VERBOSE) {
+          console.debug(ts(`Discord channel ${cid} has a Hubs link in the topic, but no webhook is present.`));
+        }
+      }
+      if (match && webhook) {
         const hubId = match[1];
         console.info(ts(`Hubs room ${hubId} bound to Discord channel ${cid}; joining.`));
+        hubsByChannel[cid] = hubId;
+        channelsByHub[hubId] = cid;
+        webhooksByHub[hubId] = webhook;
+
         let presences = {}; // client's initial empty presence state
         const hubSubscription = await subscribeToHubChannel(reticulumClient, hubId);
+        subscriptionsByHub[hubId] = hubSubscription;
         hubSubscription.on("presence_state", state => {
           presences = phoenix.Presence.syncState(presences, state);
         });
@@ -118,26 +129,32 @@ async function start() {
           };
           const name = getAuthor();
           if (VERBOSE) {
-            const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${session_id}) via hub ${hubId} to ${cid}: %j`);
-            console.info(msg, body);
+            const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${session_id}) via hub ${hubId} to channel ${cid}: %j`);
+            console.debug(msg, body);
           }
-          chan.send(`${name}: ${body}`);
+          webhook.send(body, { username: name });
         });
-        hubsByChannel[cid] = hubId;
-        channelsByHub[hubId] = cid;
-        subscriptionsByHub[hubId] = hubSubscription;
       }
     }
   }
 
   discordClient.on('message', msg => {
-    if (msg.author.id === discordClient.user.id) {
-      return;
-    }
     if (msg.content === '!duck') {
       msg.channel.send('Quack :duck:');
-    } else if (msg.channel.id in hubsByChannel) {
+      return;
+    }
+    if (msg.channel.id in hubsByChannel) {
       const hubId = hubsByChannel[msg.channel.id];
+      const hubWebhook = webhooksByHub[hubId];
+      if (msg.author.id === discordClient.user.id) {
+        return;
+      }
+      if (msg.webhookID === hubWebhook.id) {
+        return;
+      }
+      if (VERBOSE) {
+        console.debug(ts(`Relaying message via channel ${msg.channel.id} to hub ${hubId}: ${msg.content}`));
+      }
       const hubSubscription = subscriptionsByHub[hubId];
       hubSubscription.push("message", { type: "chat", body: msg.content, from: msg.author.username });
     }
