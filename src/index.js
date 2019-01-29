@@ -107,11 +107,25 @@ async function start() {
         let presences = {}; // client's initial empty presence state
         const hubSubscription = await subscribeToHubChannel(reticulumClient, hubId);
         subscriptionsByHub[hubId] = hubSubscription;
+        const onUserJoin = (id, current, newPresence) => {
+          const name = newPresence.metas[0].profile.displayName;
+          if (VERBOSE) {
+            console.debug(ts(`Relaying join for ${name} via hub ${hubId} to channel ${cid}: %j`));
+          }
+          chan.send(`${name} joined.`);
+        };
+        const onUserLeave = (id, current, leftPresence) => {
+          const name = leftPresence.metas[0].profile.displayName;
+          if (VERBOSE) {
+            console.debug(ts(`Relaying leave for ${name} via hub ${hubId} to channel ${cid}: %j`));
+          }
+          chan.send(`${name} departed.`);
+        };
         hubSubscription.on("presence_state", state => {
-          presences = phoenix.Presence.syncState(presences, state);
+          presences = phoenix.Presence.syncState(presences, state, onUserJoin, onUserLeave);
         });
         hubSubscription.on("presence_diff", diff => {
-          presences = phoenix.Presence.syncDiff(presences, diff);
+          presences = phoenix.Presence.syncDiff(presences, diff, onUserJoin, onUserLeave);
         });
         hubSubscription.on("message", ({ session_id, type, body, from }) => {
           if (reticulumSessionId === session_id) {
