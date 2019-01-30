@@ -1,0 +1,7 @@
+[general]
+
+reticulum_host = "dev.reticulum.io"
+hubs_hosts = "localhost,hubs.local"
+shard_id = "0"
+shard_count = "0"
+verbose = "false"

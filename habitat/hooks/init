@@ -1,0 +1,11 @@
+#!/bin/sh
+
+exec 2>&1
+
+# Move directories that ship in the package into place
+for dir in node_modules package.json package-lock.json src
+do
+  cp -r {{pkg.path}}/$dir {{pkg.svc_static_path}}/
+done
+
+mkdir -p {{pkg.svc_var_path}}/run

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+exec 2>&1
+
+set -e
+
+export TOKEN="{{ cfg.general.token }}"
+export RETICULUM_HOST="{{ cfg.general.reticulum_host }}"
+export HUBS_HOSTS="{{ cfg.general.hubs_hosts }}"
+export SHARD_ID="{{ cfg.general.shard_id }}"
+export SHARD_COUNT="{{ cfg.general.shard_count }}"
+export VERBOSE="{{ cfg.general.verbose }}"
+
+cd {{pkg.svc_path}}
+
+exec node {{pkg.svc_static_path}}/src/index.js
