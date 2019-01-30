@@ -11,9 +11,11 @@ class ChannelBindings {
 
   // Parses out the first hub ID in this channel topic, or null if no hub is bound.
   getHub(topic) {
-    const match = topic.match(this.topicRegex);
-    if (match) {
-      return match[1];
+    if (topic) {
+      const match = topic.match(this.topicRegex);
+      if (match) {
+        return match[1];
+      }
     }
     return null;
   }
