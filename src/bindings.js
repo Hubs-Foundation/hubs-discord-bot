@@ -37,7 +37,7 @@ class ChannelBindings {
   // hostnames and extracts the hub ID from matching URLs.
   static buildTopicRegex(hostnames) {
     const hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
-    return new RegExp(`https?://(?:${hostClauses})/(\\w+)/?\\S*`);
+    return new RegExp(`https?://(?:${hostClauses})/(\\w{7})(/\\S*|/)?$`);
   }
 
 }
