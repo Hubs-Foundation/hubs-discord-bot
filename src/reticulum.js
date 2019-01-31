@@ -60,11 +60,15 @@ class ReticulumChannel extends EventEmitter {
   }
 
   close() {
-    this.channel.leave();
+    return this.channel.leave();
+  }
+
+  getUsers() {
+    return Object.values(this.presence).map(info => info.metas[0].profile.displayName);
   }
 
   sendMessage(name, body) {
-    this.channel.push("message", { type: "chat", from: name, body });
+    return this.channel.push("message", { type: "chat", from: name, body });
   }
 
 }

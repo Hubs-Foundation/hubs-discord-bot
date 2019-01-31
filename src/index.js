@@ -99,8 +99,16 @@ async function start() {
   });
 
   discordClient.on('message', msg => {
-    if (msg.content === '!duck') {
+    if (msg.content === '!hubs duck') {
       msg.channel.send('Quack :duck:');
+      return;
+    }
+    if (msg.content === '!hubs users') {
+      const hubId = bindings.hubsByChannel[msg.channel.id];
+      const hubState = bindings.stateByHub[hubId];
+      const users = hubState.reticulumCh.getUsers();
+      const description = users.join(", ");
+      msg.channel.send(`Users currently in hub ${hubId}: ${description}`);
       return;
     }
     if (msg.channel.id in bindings.hubsByChannel) {
