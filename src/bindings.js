@@ -28,9 +28,9 @@ class ChannelBindings {
   }
 
   // Adds a new entry to the mapping.
-  associate(hubId, channel, webhook, subscription) {
-    this.hubsByChannel[channel.id] = hubId;
-    this.stateByHub[hubId] = { channel, webhook, subscription };
+  associate(hubId, discordCh, reticulumCh, webhook) {
+    this.hubsByChannel[discordCh.id] = hubId;
+    this.stateByHub[hubId] = { discordCh, reticulumCh, webhook };
   }
 
   // Given a set of hostnames, return a regex that matches Hubs URLs hosted at any of the given

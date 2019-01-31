@@ -22,43 +22,44 @@ async function connectToDiscord(client, token) {
   });
 }
 
-async function getHubsWebhook(chan) {
-  return (await chan.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
+// Gets the canonical Hubs webhook to post messages through for a Discord channel.
+async function getHubsWebhook(discordCh) {
+  return (await discordCh.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
 }
 
-async function updateBindings(reticulumClient, bindings, chan, prevHubId, currHubId) {
+async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, currHubId) {
   if (prevHubId !== currHubId) {
     if (prevHubId) {
-      console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${chan.id}; leaving.`));
-      bindings.stateByHub[prevHubId].subscription.close();
+      console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${discordCh.id}; leaving.`));
+      bindings.stateByHub[prevHubId].reticulumCh.close();
       bindings.dissociate(prevHubId);
     }
     if (currHubId) {
-      console.info(ts(`Hubs room ${currHubId} bound to Discord channel ${chan.id}; joining.`));
-      const webhook = await getHubsWebhook(chan);
-      const subscription = await reticulumClient.subscribeToHub(currHubId);
+      console.info(ts(`Hubs room ${currHubId} bound to Discord channel ${discordCh.id}; joining.`));
+      const webhook = await getHubsWebhook(discordCh);
+      const reticulumCh = await reticulumClient.subscribeToHub(currHubId);
       if (!webhook) {
         if (VERBOSE) {
-          console.debug(ts(`Discord channel ${chan.id} has a Hubs link in the topic, but no webhook is present.`));
+          console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
         }
         return;
       }
-      bindings.associate(currHubId, chan, webhook, subscription);
-      subscription.on('join', (id, name) => {
+      bindings.associate(currHubId, discordCh, reticulumCh, webhook);
+      reticulumCh.on('join', (id, name) => {
         if (VERBOSE) {
-          console.debug(ts(`Relaying join for ${name} via hub ${currHubId} to channel ${chan.id}.`));
+          console.debug(ts(`Relaying join for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
         }
-        chan.send(`${name} joined.`);
+        discordCh.send(`${name} joined.`);
       });
-      subscription.on('leave', (id, name) => {
+      reticulumCh.on('leave', (id, name) => {
         if (VERBOSE) {
-          console.debug(ts(`Relaying leave for ${name} via hub ${currHubId} to channel ${chan.id}.`));
+          console.debug(ts(`Relaying leave for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
         }
-        chan.send(`${name} departed.`);
+        discordCh.send(`${name} departed.`);
       });
-      subscription.on("message", (id, name, type, body) => {
+      reticulumCh.on("message", (id, name, type, body) => {
         if (VERBOSE) {
-          const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${id}) via hub ${currHubId} to channel ${chan.id}: %j`);
+          const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${id}) via hub ${currHubId} to channel ${discordCh.id}: %j`);
           console.debug(msg, body);
         }
         webhook.send(body, { username: name });
@@ -71,14 +72,14 @@ async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
   const shardCount = parseInt(process.env.SHARD_COUNT, 10);
-
   const discordClient = new discord.Client({ shardId, shardCount });
   await connectToDiscord(discordClient, process.env.TOKEN);
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
 
-  const reticulumClient = new ReticulumClient(process.env.RETICULUM_HOST);
+  const reticulumHost = process.env.RETICULUM_HOST;
+  const reticulumClient = new ReticulumClient(reticulumHost);
   await reticulumClient.connect();
-  console.info(ts(`Connected to Reticulum (session ID: ${reticulumClient.sessionId}).`));
+  console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${reticulumClient.socket.params.session_id}).`));
 
   const hostnames = process.env.HUBS_HOSTS.split(",");
   console.info(ts(`Binding to channels with Hubs hosts: ${hostnames.join(", ")}`));
@@ -114,7 +115,7 @@ async function start() {
       if (VERBOSE) {
         console.debug(ts(`Relaying message via channel ${msg.channel.id} to hub ${hubId}: ${msg.content}`));
       }
-      hubState.subscription.sendMessage(msg.author.username, msg.content);
+      hubState.reticulumCh.sendMessage(msg.author.username, msg.content);
     }
   });
 }

@@ -73,9 +73,7 @@ class ReticulumChannel extends EventEmitter {
 class ReticulumClient {
 
   constructor(hostname) {
-    const socketUrl = `wss://${hostname}/socket`;
-    this.sessionId = uuid();
-    this.socket = new phoenix.Socket(socketUrl, { params: { session_id: this.sessionId }});
+    this.socket = new phoenix.Socket(`wss://${hostname}/socket`, { params: { session_id: uuid() }});
   }
 
   async connect() {
@@ -96,4 +94,4 @@ class ReticulumClient {
 
 }
 
-module.exports = { ReticulumClient };
+module.exports = { ReticulumClient, ReticulumChannel };
