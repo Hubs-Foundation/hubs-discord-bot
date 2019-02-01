@@ -43,7 +43,7 @@ class ReticulumChannel extends EventEmitter {
         if (data.components) {
           const mediaLoader = Object.values(data.components).find(c => c != null && c.src);
           if (mediaLoader) {
-            this.emit('message', sessionId, name, "media", { src: mediaLoader.src });
+            // this.emit('message', sessionId, name, "media", { src: mediaLoader.src });
           }
         }
       }
