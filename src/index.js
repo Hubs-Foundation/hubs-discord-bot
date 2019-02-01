@@ -45,24 +45,37 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
         return;
       }
       bindings.associate(currHubId, discordCh, reticulumCh, webhook);
-      reticulumCh.on('join', (id, name) => {
-        if (VERBOSE) {
-          console.debug(ts(`Relaying join for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
+      reticulumCh.on('join', (id, kind, name) => {
+        if (kind === 'room') {
+          if (VERBOSE) {
+            console.debug(ts(`Relaying join for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
+          }
+          discordCh.send(`${name} joined.`);
         }
-        discordCh.send(`${name} joined.`);
       });
-      reticulumCh.on('leave', (id, name) => {
-        if (VERBOSE) {
-          console.debug(ts(`Relaying leave for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
+      reticulumCh.on('leave', (id, kind, name) => {
+        if (kind === 'room') {
+          if (VERBOSE) {
+            console.debug(ts(`Relaying leave for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
+          }
+          discordCh.send(`${name} departed.`);
         }
-        discordCh.send(`${name} departed.`);
       });
       reticulumCh.on("message", (id, name, type, body) => {
         if (VERBOSE) {
           const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${id}) via hub ${currHubId} to channel ${discordCh.id}: %j`);
           console.debug(msg, body);
         }
-        webhook.send(body, { username: name });
+        if (type === "spawn") {
+          webhook.send({ username: name, files: [{ attachment: body.src, name: "photo.png" }] });
+        } else if (type === "chat") {
+          webhook.send(body, { username: name });
+        } else if (type === "media") {
+          // don't bother with media that is "boring", i.e. vendored by us, like chats, ducks, avatars, pens
+          if (!body.src.startsWith("https://asset-bundles-prod.reticulum.io")) {
+            webhook.send(body.src, { username: name });
+          }
+        }
       });
     }
   }
