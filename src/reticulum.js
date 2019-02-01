@@ -23,10 +23,12 @@ class ReticulumChannel extends EventEmitter {
 
   async connect() {
     const onJoin = (id, curr, p) => {
-      this.emit('join', id, p.metas[0].profile.displayName);
+      const mostRecent = p.metas[p.metas.length - 1];
+      this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
     };
     const onLeave = (id, curr, p) => {
-      this.emit('leave', id, p.metas[0].profile.displayName);
+      const mostRecent = p.metas[p.metas.length - 1];
+      this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);
     };
     this.channel.on("presence_state", state => {
       this.presence = phoenix.Presence.syncState(this.presence, state, onJoin, onLeave);
