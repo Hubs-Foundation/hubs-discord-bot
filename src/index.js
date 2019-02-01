@@ -70,6 +70,11 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
           webhook.send({ username: name, files: [{ attachment: body.src, name: "photo.png" }] });
         } else if (type === "chat") {
           webhook.send(body, { username: name });
+        } else if (type === "media") {
+          // don't bother with media that is "boring", i.e. vendored by us, like chats, ducks, avatars, pens
+          if (!body.src.startsWith("https://asset-bundles-prod.reticulum.io")) {
+            webhook.send(body.src, { username: name });
+          }
         }
       });
     }

@@ -36,21 +36,23 @@ class ReticulumChannel extends EventEmitter {
     this.channel.on("presence_diff", diff => {
       this.presence = phoenix.Presence.syncDiff(this.presence, diff, onJoin, onLeave);
     });
+    this.channel.on("naf", ({ dataType, data }) => {
+      if (dataType === 'u') { // spawn an object
+        const sessionId = data.owner;
+        const name = this.getName(sessionId);
+        if (data.components) {
+          const mediaLoader = Object.values(data.components).find(c => c != null && c.src);
+          if (mediaLoader) {
+            this.emit('message', sessionId, name, "media", { src: mediaLoader.src });
+          }
+        }
+      }
+    });
     this.channel.on("message", ({ session_id, type, body, from }) => {
       if (this.channel.socket.params.session_id === session_id) {
         return;
       }
-      const getSender = () => {
-        const userInfo = this.presence[session_id];
-        if (from) {
-          return from;
-        } else if (userInfo) {
-          return userInfo.metas[0].profile.displayName;
-        } else {
-          return null;
-        }
-      };
-      const name = getSender();
+      const name = from || this.getName(session_id);
       this.emit('message', session_id, name, type, body);
 
     });
@@ -63,6 +65,15 @@ class ReticulumChannel extends EventEmitter {
 
   close() {
     return this.channel.leave();
+  }
+
+  getName(sessionId) {
+    const userInfo = this.presence[sessionId];
+    if (userInfo) {
+      const mostRecent = userInfo.metas[userInfo.metas.length - 1];
+      return mostRecent.profile.displayName;
+    }
+    return null;
   }
 
   getUsers() {
@@ -79,7 +90,9 @@ class ReticulumChannel extends EventEmitter {
 class ReticulumClient {
 
   constructor(hostname) {
-    this.socket = new phoenix.Socket(`wss://${hostname}/socket`, { params: { session_id: uuid() }});
+    this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
+      params: { session_id: uuid() }
+    });
   }
 
   async connect() {
