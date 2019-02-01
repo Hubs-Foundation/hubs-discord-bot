@@ -66,7 +66,11 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
           const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${id}) via hub ${currHubId} to channel ${discordCh.id}: %j`);
           console.debug(msg, body);
         }
-        webhook.send(body, { username: name });
+        if (type === "spawn") {
+          webhook.send({ username: name, files: [{ attachment: body.src, name: "photo.png" }] });
+        } else if (type === "chat") {
+          webhook.send(body, { username: name });
+        }
       });
     }
   }
