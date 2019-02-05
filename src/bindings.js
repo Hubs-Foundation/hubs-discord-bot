@@ -23,7 +23,7 @@ class ChannelBindings {
   // Removes an entry from the mapping.
   dissociate(hubId) {
     const state = this.stateByHub[hubId];
-    delete this.hubsByChannel[state.channel.id];
+    delete this.hubsByChannel[state.discordCh.id];
     delete this.stateByHub[hubId];
   }
 
