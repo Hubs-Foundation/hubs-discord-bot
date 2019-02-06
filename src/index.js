@@ -7,12 +7,22 @@ const VERBOSE = (process.env.VERBOSE === "true");
 
 const discord = require('discord.js');
 const phoenix = require("phoenix-channels");
-const ChannelBindings = require("./bindings.js").ChannelBindings;
-const ReticulumClient = require("./reticulum.js").ReticulumClient;
+const { ChannelBindings } = require("./bindings.js");
+const { PresenceQueue } = require("./presence-queue.js");
+const { ReticulumClient } = require("./reticulum.js");
 
 // Prepends a timestamp to a string.
 function ts(str) {
   return `[${new Date().toISOString()}] ${str}`;
+}
+
+// Formats a message of the form "Alice, Bob, and Charlie verbed."
+function formatEvent(users, verb) {
+  if (users.length === 1) {
+    return `${users[0].name} ${verb}.`;
+  } else {
+    return `${users.slice(0, -1).map(u => u.name).join(", ")} and ${users[users.length - 1].name} ${verb}.`;
+  }
 }
 
 async function connectToDiscord(client, token) {
@@ -48,31 +58,47 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
       bindings.associate(currHubId, currHubUrl, discordCh, reticulumCh, webhook);
       discordCh.send(`<#${discordCh.id}> bound to hub at ${currHubUrl}.`);
 
+      const presenceQueue = new PresenceQueue();
+      let lastPresenceMessage = null;
+      presenceQueue.on('new', async ({ kind, users }) => {
+        if (kind === "arrive") {
+          lastPresenceMessage = await discordCh.send(formatEvent(users, "arrived"));
+        } else if (kind === "depart") {
+          lastPresenceMessage = await discordCh.send(formatEvent(users, "departed"));
+        }
+      });
+      presenceQueue.on('update', async ({ kind, users }) => {
+        if (kind === "arrive") {
+          lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "arrived"));
+        } else if (kind === "depart") {
+          lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "departed"));
+        }
+      });
       reticulumCh.on('join', (id, kind, whom) => {
         if (kind === 'room') {
           if (VERBOSE) {
-            console.debug(ts(`Relaying join for ${whom} via hub ${currHubId} to channel ${discordCh.id}.`));
+            console.debug(ts(`Relaying join for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
           }
-          discordCh.send(`${whom} joined.`);
+          presenceQueue.arrive(id, whom, Date.now());
         }
       });
       reticulumCh.on('leave', (id, kind, whom) => {
         if (kind === 'room') {
           if (VERBOSE) {
-            console.debug(ts(`Relaying leave for ${whom} via hub ${currHubId} to channel ${discordCh.id}.`));
+            console.debug(ts(`Relaying leave for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
           }
-          discordCh.send(`${whom} departed.`);
+          presenceQueue.depart(id, whom, Date.now());
         }
       });
       reticulumCh.on('rescene', (id, whom, scene) => {
         if (VERBOSE) {
-          console.debug(ts(`Relaying scene change by ${whom} in hub ${currHubId} to channel ${discordCh.id}.`));
+          console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
         }
-        discordCh.send(`${whom} changed the scene in ${currHubUrl} to ${scene.name}.`);
+        discordCh.send(`${whom} (${id}) changed the scene in ${currHubUrl} to ${scene.name}.`);
       });
       reticulumCh.on("message", (id, whom, type, body) => {
         if (VERBOSE) {
-          const msg = ts(`Relaying message of type ${type} from ${whom} (ID ${id}) via hub ${currHubId} to channel ${discordCh.id}: %j`);
+          const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${currHubId} to channel ${discordCh.id}: %j`);
           console.debug(msg, body);
         }
         if (type === "spawn") {

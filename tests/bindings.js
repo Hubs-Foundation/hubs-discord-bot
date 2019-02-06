@@ -1,5 +1,5 @@
 var test = require('tape');
-var ChannelBindings = require('../src/bindings.js').ChannelBindings;
+var { ChannelBindings } = require('../src/bindings.js');
 
 test('Hubs URLs are detected in channel topics', function(t) {
   var bindings = new ChannelBindings(["foo", "bar.mozilla.com"]);
