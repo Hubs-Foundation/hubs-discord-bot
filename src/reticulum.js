@@ -22,39 +22,54 @@ class ReticulumChannel extends EventEmitter {
   }
 
   async connect() {
+
     const onJoin = (id, curr, p) => {
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
     };
+
     const onLeave = (id, curr, p) => {
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);
     };
+
     this.channel.on("presence_state", state => {
       this.presence = phoenix.Presence.syncState(this.presence, state, onJoin, onLeave);
     });
+
     this.channel.on("presence_diff", diff => {
       this.presence = phoenix.Presence.syncDiff(this.presence, diff, onJoin, onLeave);
     });
+
     this.channel.on("hub_refresh", ({ session_id, stale_fields, hubs }) => {
       const sender = this.getName(session_id);
       if (stale_fields.includes('scene')) {
         this.emit('rescene', session_id, sender, hubs[0].scene);
       }
     });
-    this.channel.on("naf", ({ dataType, data }) => {
-      if (dataType === 'u') { // spawn an object
+
+    this.channel.on("naf", ({ dataType, data, clientId }) => {
+      // if this message is to a particular client, it's catching that client up on
+      // something that already happened which everyone else knows, like a spawn, and
+      // we have no interest in echoing it to Discord again
+      if (clientId) {
+        return;
+      }
+
+      if (dataType === 'u' && data.isFirstSync) { // spawn an object
         const sessionId = data.owner;
         const sender = this.getName(sessionId);
         if (data.components) {
           const mediaLoader = Object.values(data.components).find(c => c != null && c.src);
           if (mediaLoader) {
-            // this.emit('message', sessionId, sender, "media", { src: mediaLoader.src });
+            this.emit('message', sessionId, sender, "media", { src: mediaLoader.src });
           }
         }
       }
     });
+
     this.channel.on("message", ({ session_id, type, body, from }) => {
+      // we sent this message ourselves just now, don't notify ourselves about it
       if (this.channel.socket.params.session_id === session_id) {
         return;
       }
@@ -62,6 +77,7 @@ class ReticulumChannel extends EventEmitter {
       this.emit('message', session_id, sender, type, body);
 
     });
+
     return new Promise((resolve, reject) => {
       this.channel.join()
         .receive("ok", resolve)
