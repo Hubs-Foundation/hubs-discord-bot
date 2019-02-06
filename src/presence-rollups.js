@@ -1,13 +1,31 @@
 const EventEmitter = require('events');
 
 // Data structure for tracking the series of arrivals/departures in a hub and rolling it up
-// into a useful stream of Discord notifications.
+// into a useful stream of Discord notifications. When new arrivals or departures happen, either
+// a new notification will be produced, or the most recent notification will be amended.
+//
+// Fires two kinds of events:
+// - "new", indicating that a new notification should be produced announcing the arrival or
+//   departure of some set of users.
+// - "update", indicating that the previous notification should be amended and whichever users
+//   were announced in it should be replaced with the newly provided set of users.
+//
 class PresenceRollups extends EventEmitter {
+
+  // note that there is one highly suspicious thing about this implementation; we don't have a consistent
+  // way of tracking that a client who leaves and rejoins is "the same guy", so instead, we assume that people
+  // with the same name are "the same guy" for purposes of collapsing rejoin notifications. thus why
+  // pendingDepartures is keyed on name, not ID, and why it has an array of timeouts, instead of one.
 
   constructor(options) {
     super();
+
+    // All of the notifications which have ever been produced, first to last.
     this.entries = []; // { kind, users: [{ id, name }], timestamp }
-    this.pendingDepartures = {}; // { id: timeout }
+
+    // All of the departures which we're waiting on to see whether the guy quickly rejoins.
+    this.pendingDepartures = {}; // { name: [timeout] }
+
     this.options = Object.assign({
       // The duration for which we wait to roll up multiple people's arrivals.
       arrive_rollup_leeway_ms: 60 * 1000,
@@ -23,11 +41,10 @@ class PresenceRollups extends EventEmitter {
   }
 
   arrive(id, name, timestamp) {
-    const pending = this.pendingDepartures[id];
+    const pending = (this.pendingDepartures[name] || []).pop();
     if (pending) {
       // don't bother reporting leave/rejoins
       clearTimeout(pending);
-      delete this.pendingDepartures[id];
       return;
     }
 
@@ -51,11 +68,12 @@ class PresenceRollups extends EventEmitter {
   depart(id, name, timestamp) {
     // we don't know yet whether this person might quickly rejoin, so wait and see
     const delay = this.options.depart_rejoin_patience_ms;
-    this.pendingDepartures[id] = setTimeout(() => { this.finalizeDeparture(id, name, timestamp + delay); }, delay);
+    const pending = this.pendingDepartures[name] || (this.pendingDepartures[name] = []);
+    pending.push(setTimeout(() => { this.finalizeDeparture(id, name, timestamp + delay); }, delay));
   }
 
   finalizeDeparture(id, name, timestamp) {
-    delete this.pendingDepartures[id];
+    (this.pendingDepartures[name] || []).pop();
     const prev = this.latest();
     if (prev != null && prev.kind === "depart") {
       const elapsed = timestamp - prev.timestamp;
