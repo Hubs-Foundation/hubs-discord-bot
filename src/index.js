@@ -8,7 +8,7 @@ const VERBOSE = (process.env.VERBOSE === "true");
 const discord = require('discord.js');
 const phoenix = require("phoenix-channels");
 const { ChannelBindings } = require("./bindings.js");
-const { PresenceQueue } = require("./presence-queue.js");
+const { PresenceRollups } = require("./presence-rollups.js");
 const { ReticulumClient } = require("./reticulum.js");
 
 // Prepends a timestamp to a string.
@@ -50,16 +50,16 @@ async function establishBindings(reticulumClient, bindings, discordCh, hubId, hu
   }
   bindings.associate(hubId, hubUrl, discordCh, reticulumCh, webhook);
 
-  const presenceQueue = new PresenceQueue();
+  const presenceRollups = new PresenceRollups();
   let lastPresenceMessage = null;
-  presenceQueue.on('new', async ({ kind, users }) => {
+  presenceRollups.on('new', async ({ kind, users }) => {
     if (kind === "arrive") {
       lastPresenceMessage = await discordCh.send(formatEvent(users, "arrived"));
     } else if (kind === "depart") {
       lastPresenceMessage = await discordCh.send(formatEvent(users, "departed"));
     }
   });
-  presenceQueue.on('update', async ({ kind, users }) => {
+  presenceRollups.on('update', async ({ kind, users }) => {
     if (kind === "arrive") {
       lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "arrived"));
     } else if (kind === "depart") {
@@ -70,13 +70,13 @@ async function establishBindings(reticulumClient, bindings, discordCh, hubId, hu
     if (VERBOSE) {
       console.debug(ts(`Relaying join for ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
     }
-    presenceQueue.arrive(id, whom, Date.now());
+    presenceRollups.arrive(id, whom, Date.now());
   });
   reticulumCh.on('leave', (id, kind, whom) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying leave for ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
     }
-    presenceQueue.depart(id, whom, Date.now());
+    presenceRollups.depart(id, whom, Date.now());
   });
   reticulumCh.on('rescene', (id, whom, scene) => {
     if (VERBOSE) {

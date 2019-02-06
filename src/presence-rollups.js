@@ -2,7 +2,7 @@ const EventEmitter = require('events');
 
 // Data structure for tracking the series of arrivals/departures in a hub and rolling it up
 // into a useful stream of Discord notifications.
-class PresenceQueue extends EventEmitter {
+class PresenceRollups extends EventEmitter {
 
   constructor(options) {
     super();
@@ -75,4 +75,4 @@ class PresenceQueue extends EventEmitter {
 
 }
 
-module.exports = { PresenceQueue };
+module.exports = { PresenceRollups };

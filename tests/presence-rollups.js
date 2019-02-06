@@ -1,9 +1,9 @@
 var test = require('tape');
-var { PresenceQueue } = require('../src/presence-queue.js');
+var { PresenceRollups } = require('../src/presence-rollups.js');
 
-test('Presence queue rolls up arrivals and departures correctly', function(t) {
+test('PresenceRollups rolls up arrivals and departures correctly', function(t) {
 
-  var q = new PresenceQueue({
+  var q = new PresenceRollups({
     arrive_rollup_leeway_ms: 1,
     depart_rollup_leeway_ms: 2,
     depart_rejoin_patience_ms: 10
