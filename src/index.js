@@ -76,7 +76,7 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
           console.debug(msg, body);
         }
         if (type === "spawn") {
-          webhook.send({ username: whom, files: [{ attachment: body.src, name: "photo.png" }] });
+          webhook.send(body.src, { username: whom });
         } else if (type === "chat") {
           webhook.send(body, { username: whom });
         } else if (type === "media") {
