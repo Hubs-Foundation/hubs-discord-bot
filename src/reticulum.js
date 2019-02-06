@@ -1,5 +1,4 @@
 const EventEmitter = require('events');
-const escapeStringRegexp = require('escape-string-regexp');
 const phoenix = require("phoenix-channels");
 const uuid = require("uuid");
 

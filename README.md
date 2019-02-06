@@ -1,6 +1,6 @@
 # hubs-discord-bot
 
-A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges chat and lets you see who is currently in Hubs from Discord.
+A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves) and lets you see who is currently in Hubs from Discord.
 
 To configure it, either create a `.env` file in the root directory with settings, or set equivalent environment
 variables. You can see configurables in `.env.defaults`.

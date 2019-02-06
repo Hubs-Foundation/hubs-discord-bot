@@ -6,7 +6,6 @@ dotenv.config({ path: ".env.defaults" });
 const VERBOSE = (process.env.VERBOSE === "true");
 
 const discord = require('discord.js');
-const phoenix = require("phoenix-channels");
 const { ChannelBindings } = require("./bindings.js");
 const { PresenceRollups } = require("./presence-rollups.js");
 const { ReticulumClient } = require("./reticulum.js");
@@ -25,6 +24,7 @@ function formatEvent(users, verb) {
   }
 }
 
+// Returns a promise indicating when the Discord client is connected and ready to query the API.
 async function connectToDiscord(client, token) {
   return new Promise((resolve, reject) => {
     client.on("ready", () => resolve(client));
@@ -132,8 +132,9 @@ async function start() {
   const hostnames = process.env.HUBS_HOSTS.split(",");
   console.info(ts(`Binding to channels with Hubs hosts: ${hostnames.join(", ")}`));
 
+  // one-time scan through all channels to look for existing bindings
   const bindings = new ChannelBindings(hostnames);
-  for (let [cid, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
+  for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     const { url: hubUrl, id: hubId } = bindings.getHub(chan.topic) || {};
     if (hubId) {
       await establishBindings(reticulumClient, bindings, chan, hubId, hubUrl);
