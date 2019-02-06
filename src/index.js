@@ -41,10 +41,13 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
       if (!webhook) {
         if (VERBOSE) {
           console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
+          discordCh.send("I found a Hubs URL in the topic, but no webhook exists in this channel yet, so it won't work.");
         }
         return;
       }
       bindings.associate(currHubId, currHubUrl, discordCh, reticulumCh, webhook);
+      discordCh.send(`<#${discordCh.id}> bound to hub at ${currHubUrl}.`);
+
       reticulumCh.on('join', (id, kind, whom) => {
         if (kind === 'room') {
           if (VERBOSE) {
