@@ -37,7 +37,72 @@ async function getHubsWebhook(discordCh) {
   return (await discordCh.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
 }
 
-async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, currHubId, currHubUrl) {
+async function establishBindings(reticulumClient, bindings, discordCh, hubId, hubUrl) {
+  console.info(ts(`Hubs room ${hubId} bound to Discord channel ${discordCh.id}; joining.`));
+  const webhook = await getHubsWebhook(discordCh);
+  const reticulumCh = await reticulumClient.subscribeToHub(hubId);
+  if (!webhook) {
+    if (VERBOSE) {
+      console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
+      discordCh.send("I found a Hubs URL in the topic, but no webhook exists in this channel yet, so it won't work.");
+    }
+    return;
+  }
+  bindings.associate(hubId, hubUrl, discordCh, reticulumCh, webhook);
+
+  const presenceQueue = new PresenceQueue();
+  let lastPresenceMessage = null;
+  presenceQueue.on('new', async ({ kind, users }) => {
+    if (kind === "arrive") {
+      lastPresenceMessage = await discordCh.send(formatEvent(users, "arrived"));
+    } else if (kind === "depart") {
+      lastPresenceMessage = await discordCh.send(formatEvent(users, "departed"));
+    }
+  });
+  presenceQueue.on('update', async ({ kind, users }) => {
+    if (kind === "arrive") {
+      lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "arrived"));
+    } else if (kind === "depart") {
+      lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "departed"));
+    }
+  });
+  reticulumCh.on('join', (id, kind, whom) => {
+    if (VERBOSE) {
+      console.debug(ts(`Relaying join for ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
+    }
+    presenceQueue.arrive(id, whom, Date.now());
+  });
+  reticulumCh.on('leave', (id, kind, whom) => {
+    if (VERBOSE) {
+      console.debug(ts(`Relaying leave for ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
+    }
+    presenceQueue.depart(id, whom, Date.now());
+  });
+  reticulumCh.on('rescene', (id, whom, scene) => {
+    if (VERBOSE) {
+      console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
+    }
+    discordCh.send(`${whom} (${id}) changed the scene in ${hubUrl} to ${scene.name}.`);
+  });
+  reticulumCh.on("message", (id, whom, type, body) => {
+    if (VERBOSE) {
+      const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${hubId} to channel ${discordCh.id}: %j`);
+      console.debug(msg, body);
+    }
+    if (type === "spawn") {
+      webhook.send(body.src, { username: whom });
+    } else if (type === "chat") {
+      webhook.send(body, { username: whom });
+    } else if (type === "media") {
+      // don't bother with media that is "boring", i.e. vendored by us, like chats, ducks, avatars, pens
+      if (!body.src.startsWith("https://asset-bundles-prod.reticulum.io")) {
+        webhook.send(body.src, { username: whom });
+      }
+    }
+  });
+}
+
+function updateBindings(reticulumClient, bindings, discordCh, prevHubId, currHubId, currHubUrl) {
   if (prevHubId !== currHubId) {
     if (prevHubId) {
       console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${discordCh.id}; leaving.`));
@@ -45,69 +110,8 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
       bindings.dissociate(prevHubId);
     }
     if (currHubId) {
-      console.info(ts(`Hubs room ${currHubId} bound to Discord channel ${discordCh.id}; joining.`));
-      const webhook = await getHubsWebhook(discordCh);
-      const reticulumCh = await reticulumClient.subscribeToHub(currHubId);
-      if (!webhook) {
-        if (VERBOSE) {
-          console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
-          discordCh.send("I found a Hubs URL in the topic, but no webhook exists in this channel yet, so it won't work.");
-        }
-        return;
-      }
-      bindings.associate(currHubId, currHubUrl, discordCh, reticulumCh, webhook);
+      establishBindings(reticulumClient, bindings, discordCh, currHubId, currHubUrl);
       discordCh.send(`<#${discordCh.id}> bound to hub at ${currHubUrl}.`);
-
-      const presenceQueue = new PresenceQueue();
-      let lastPresenceMessage = null;
-      presenceQueue.on('new', async ({ kind, users }) => {
-        if (kind === "arrive") {
-          lastPresenceMessage = await discordCh.send(formatEvent(users, "arrived"));
-        } else if (kind === "depart") {
-          lastPresenceMessage = await discordCh.send(formatEvent(users, "departed"));
-        }
-      });
-      presenceQueue.on('update', async ({ kind, users }) => {
-        if (kind === "arrive") {
-          lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "arrived"));
-        } else if (kind === "depart") {
-          lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "departed"));
-        }
-      });
-      reticulumCh.on('join', (id, kind, whom) => {
-        if (VERBOSE) {
-          console.debug(ts(`Relaying join for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
-        }
-        presenceQueue.arrive(id, whom, Date.now());
-      });
-      reticulumCh.on('leave', (id, kind, whom) => {
-        if (VERBOSE) {
-          console.debug(ts(`Relaying leave for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
-        }
-        presenceQueue.depart(id, whom, Date.now());
-      });
-      reticulumCh.on('rescene', (id, whom, scene) => {
-        if (VERBOSE) {
-          console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
-        }
-        discordCh.send(`${whom} (${id}) changed the scene in ${currHubUrl} to ${scene.name}.`);
-      });
-      reticulumCh.on("message", (id, whom, type, body) => {
-        if (VERBOSE) {
-          const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${currHubId} to channel ${discordCh.id}: %j`);
-          console.debug(msg, body);
-        }
-        if (type === "spawn") {
-          webhook.send(body.src, { username: whom });
-        } else if (type === "chat") {
-          webhook.send(body, { username: whom });
-        } else if (type === "media") {
-          // don't bother with media that is "boring", i.e. vendored by us, like chats, ducks, avatars, pens
-          if (!body.src.startsWith("https://asset-bundles-prod.reticulum.io")) {
-            webhook.send(body.src, { username: whom });
-          }
-        }
-      });
     }
   }
 }
@@ -132,7 +136,7 @@ async function start() {
   for (let [cid, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     const { url: hubUrl, id: hubId } = bindings.getHub(chan.topic) || {};
     if (hubId) {
-      await updateBindings(reticulumClient, bindings, chan, null, hubId, hubUrl);
+      await establishBindings(reticulumClient, bindings, chan, hubId, hubUrl);
     }
   }
 
