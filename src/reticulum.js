@@ -27,6 +27,9 @@ class ReticulumChannel extends EventEmitter {
       if (this.channel.socket.params.session_id === id) {
         return;
       }
+      if (curr != null && curr.metas != null && curr.metas.length > 0) {
+        return; // this guy was already in the lobby or room, don't notify again
+      }
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
     };
@@ -34,6 +37,9 @@ class ReticulumChannel extends EventEmitter {
     const onLeave = (id, curr, p) => {
       if (this.channel.socket.params.session_id === id) {
         return;
+      }
+      if (curr != null && curr.metas != null && curr.metas.length > 0) {
+        return; // this guy is still in the lobby or room, don't notify yet
       }
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);

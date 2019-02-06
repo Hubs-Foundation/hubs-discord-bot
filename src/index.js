@@ -75,20 +75,16 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
         }
       });
       reticulumCh.on('join', (id, kind, whom) => {
-        if (kind === 'lobby') {
-          if (VERBOSE) {
-            console.debug(ts(`Relaying join for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
-          }
-          presenceQueue.arrive(id, whom, Date.now());
+        if (VERBOSE) {
+          console.debug(ts(`Relaying join for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
         }
+        presenceQueue.arrive(id, whom, Date.now());
       });
       reticulumCh.on('leave', (id, kind, whom) => {
-        if (kind === 'room') {
-          if (VERBOSE) {
-            console.debug(ts(`Relaying leave for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
-          }
-          presenceQueue.depart(id, whom, Date.now());
+        if (VERBOSE) {
+          console.debug(ts(`Relaying leave for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
         }
+        presenceQueue.depart(id, whom, Date.now());
       });
       reticulumCh.on('rescene', (id, whom, scene) => {
         if (VERBOSE) {
