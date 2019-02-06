@@ -24,11 +24,17 @@ class ReticulumChannel extends EventEmitter {
   async connect() {
 
     const onJoin = (id, curr, p) => {
+      if (this.channel.socket.params.session_id === id) {
+        return;
+      }
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
     };
 
     const onLeave = (id, curr, p) => {
+      if (this.channel.socket.params.session_id === id) {
+        return;
+      }
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);
     };

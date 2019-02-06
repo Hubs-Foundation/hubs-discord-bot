@@ -75,7 +75,7 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
         }
       });
       reticulumCh.on('join', (id, kind, whom) => {
-        if (kind === 'room') {
+        if (kind === 'lobby') {
           if (VERBOSE) {
             console.debug(ts(`Relaying join for ${whom} (${id}) in ${currHubId} to channel ${discordCh.id}.`));
           }
