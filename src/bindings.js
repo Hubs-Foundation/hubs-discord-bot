@@ -14,7 +14,7 @@ class ChannelBindings {
     if (topic) {
       const match = topic.match(this.topicRegex);
       if (match) {
-        return match[1];
+        return { url: match[0], id: match[1] };
       }
     }
     return null;
@@ -28,9 +28,9 @@ class ChannelBindings {
   }
 
   // Adds a new entry to the mapping.
-  associate(hubId, discordCh, reticulumCh, webhook) {
+  associate(hubId, hubUrl, discordCh, reticulumCh, webhook) {
     this.hubsByChannel[discordCh.id] = hubId;
-    this.stateByHub[hubId] = { discordCh, reticulumCh, webhook };
+    this.stateByHub[hubId] = { hubUrl, discordCh, reticulumCh, webhook };
   }
 
   // Given a set of hostnames, return a regex that matches Hubs URLs hosted at any of the given

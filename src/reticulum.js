@@ -36,14 +36,20 @@ class ReticulumChannel extends EventEmitter {
     this.channel.on("presence_diff", diff => {
       this.presence = phoenix.Presence.syncDiff(this.presence, diff, onJoin, onLeave);
     });
+    this.channel.on("hub_refresh", ({ session_id, stale_fields, hubs }) => {
+      const sender = this.getName(session_id);
+      if (stale_fields.includes('scene')) {
+        this.emit('rescene', session_id, sender, hubs[0].scene);
+      }
+    });
     this.channel.on("naf", ({ dataType, data }) => {
       if (dataType === 'u') { // spawn an object
         const sessionId = data.owner;
-        const name = this.getName(sessionId);
+        const sender = this.getName(sessionId);
         if (data.components) {
           const mediaLoader = Object.values(data.components).find(c => c != null && c.src);
           if (mediaLoader) {
-            // this.emit('message', sessionId, name, "media", { src: mediaLoader.src });
+            // this.emit('message', sessionId, sender, "media", { src: mediaLoader.src });
           }
         }
       }
@@ -52,8 +58,8 @@ class ReticulumChannel extends EventEmitter {
       if (this.channel.socket.params.session_id === session_id) {
         return;
       }
-      const name = from || this.getName(session_id);
-      this.emit('message', session_id, name, type, body);
+      const sender = from || this.getName(session_id);
+      this.emit('message', session_id, sender, type, body);
 
     });
     return new Promise((resolve, reject) => {

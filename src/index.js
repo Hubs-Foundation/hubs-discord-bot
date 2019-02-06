@@ -27,7 +27,7 @@ async function getHubsWebhook(discordCh) {
   return (await discordCh.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
 }
 
-async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, currHubId) {
+async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, currHubId, currHubUrl) {
   if (prevHubId !== currHubId) {
     if (prevHubId) {
       console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${discordCh.id}; leaving.`));
@@ -44,36 +44,42 @@ async function updateBindings(reticulumClient, bindings, discordCh, prevHubId, c
         }
         return;
       }
-      bindings.associate(currHubId, discordCh, reticulumCh, webhook);
-      reticulumCh.on('join', (id, kind, name) => {
+      bindings.associate(currHubId, currHubUrl, discordCh, reticulumCh, webhook);
+      reticulumCh.on('join', (id, kind, whom) => {
         if (kind === 'room') {
           if (VERBOSE) {
-            console.debug(ts(`Relaying join for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
+            console.debug(ts(`Relaying join for ${whom} via hub ${currHubId} to channel ${discordCh.id}.`));
           }
-          discordCh.send(`${name} joined.`);
+          discordCh.send(`${whom} joined.`);
         }
       });
-      reticulumCh.on('leave', (id, kind, name) => {
+      reticulumCh.on('leave', (id, kind, whom) => {
         if (kind === 'room') {
           if (VERBOSE) {
-            console.debug(ts(`Relaying leave for ${name} via hub ${currHubId} to channel ${discordCh.id}.`));
+            console.debug(ts(`Relaying leave for ${whom} via hub ${currHubId} to channel ${discordCh.id}.`));
           }
-          discordCh.send(`${name} departed.`);
+          discordCh.send(`${whom} departed.`);
         }
       });
-      reticulumCh.on("message", (id, name, type, body) => {
+      reticulumCh.on('rescene', (id, whom, scene) => {
         if (VERBOSE) {
-          const msg = ts(`Relaying message of type ${type} from ${name} (session ID ${id}) via hub ${currHubId} to channel ${discordCh.id}: %j`);
+          console.debug(ts(`Relaying scene change by ${whom} in hub ${currHubId} to channel ${discordCh.id}.`));
+        }
+        discordCh.send(`${whom} changed the scene in ${currHubUrl} to ${scene.name}.`);
+      });
+      reticulumCh.on("message", (id, whom, type, body) => {
+        if (VERBOSE) {
+          const msg = ts(`Relaying message of type ${type} from ${whom} (ID ${id}) via hub ${currHubId} to channel ${discordCh.id}: %j`);
           console.debug(msg, body);
         }
         if (type === "spawn") {
-          webhook.send({ username: name, files: [{ attachment: body.src, name: "photo.png" }] });
+          webhook.send({ username: whom, files: [{ attachment: body.src, name: "photo.png" }] });
         } else if (type === "chat") {
-          webhook.send(body, { username: name });
+          webhook.send(body, { username: whom });
         } else if (type === "media") {
           // don't bother with media that is "boring", i.e. vendored by us, like chats, ducks, avatars, pens
           if (!body.src.startsWith("https://asset-bundles-prod.reticulum.io")) {
-            webhook.send(body.src, { username: name });
+            webhook.send(body.src, { username: whom });
           }
         }
       });
@@ -99,16 +105,16 @@ async function start() {
 
   const bindings = new ChannelBindings(hostnames);
   for (let [cid, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
-    const hubId = bindings.getHub(chan.topic);
+    const { url: hubUrl, id: hubId } = bindings.getHub(chan.topic) || {};
     if (hubId) {
-      await updateBindings(reticulumClient, bindings, chan, null, hubId);
+      await updateBindings(reticulumClient, bindings, chan, null, hubId, hubUrl);
     }
   }
 
   discordClient.on('channelUpdate', (oldChannel, newChannel) => {
     const oldHubId = bindings.hubsByChannel[oldChannel.id];
-    const newHubId = bindings.getHub(newChannel.topic);
-    updateBindings(reticulumClient, bindings, newChannel, oldHubId, newHubId);
+    const { url: newHubUrl, id: newHubId } = bindings.getHub(newChannel.topic) || {};
+    updateBindings(reticulumClient, bindings, newChannel, oldHubId, newHubId, newHubUrl);
   });
 
   discordClient.on('message', msg => {
