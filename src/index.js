@@ -18,9 +18,9 @@ function ts(str) {
 // Formats a message of the form "Alice, Bob, and Charlie verbed."
 function formatEvent(users, verb) {
   if (users.length === 1) {
-    return `${users[0].name} ${verb}.`;
+    return `**${users[0].name}** ${verb}.`;
   } else {
-    return `${users.slice(0, -1).map(u => u.name).join(", ")} and ${users[users.length - 1].name} ${verb}.`;
+    return `**${users.slice(0, -1).map(u => u.name).join(", ")}** and **${users[users.length - 1].name}** ${verb}.`;
   }
 }
 
@@ -82,7 +82,7 @@ async function establishBindings(reticulumClient, bindings, discordCh, hubId, hu
     if (VERBOSE) {
       console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
     }
-    discordCh.send(`${whom} (${id}) changed the scene in ${hubUrl} to ${scene.name}.`);
+    discordCh.send(`${whom} changed the scene in ${hubUrl} to ${scene.name}.`);
   });
   reticulumCh.on("message", (id, whom, type, body) => {
     if (VERBOSE) {
@@ -152,17 +152,17 @@ async function start() {
       msg.channel.send('Quack :duck:');
       return;
     }
-    if (msg.content === '!hubs users') {
-      const hubId = bindings.hubsByChannel[msg.channel.id];
-      const hubState = bindings.stateByHub[hubId];
-      const users = hubState.reticulumCh.getUsers();
-      const description = users.join(", ");
-      msg.channel.send(`Users currently in hub ${hubId}: ${description}`);
-      return;
-    }
     if (msg.channel.id in bindings.hubsByChannel) {
       const hubId = bindings.hubsByChannel[msg.channel.id];
       const hubState = bindings.stateByHub[hubId];
+
+      if (msg.content === '!hubs users') {
+        const users = hubState.reticulumCh.getUsers();
+        const description = users.join(", ");
+        msg.channel.send(`Users currently in <${hubState.hubUrl}>: **${description}**`);
+        return;
+      }
+
       if (msg.author.id === discordClient.user.id) {
         return;
       }
