@@ -52,18 +52,18 @@ async function establishBindings(reticulumClient, bindings, discordCh, hubId, hu
 
   const presenceRollups = new PresenceRollups();
   let lastPresenceMessage = null;
-  presenceRollups.on('new', async ({ kind, users }) => {
+  presenceRollups.on('new', ({ kind, users }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = await discordCh.send(formatEvent(users, "arrived"));
+      lastPresenceMessage = discordCh.send(formatEvent(users, "arrived"));
     } else if (kind === "depart") {
-      lastPresenceMessage = await discordCh.send(formatEvent(users, "departed"));
+      lastPresenceMessage = discordCh.send(formatEvent(users, "departed"));
     }
   });
-  presenceRollups.on('update', async ({ kind, users }) => {
+  presenceRollups.on('update', ({ kind, users }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "arrived"));
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "arrived")));
     } else if (kind === "depart") {
-      lastPresenceMessage = await lastPresenceMessage.edit(formatEvent(users, "departed"));
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "departed")));
     }
   });
   reticulumCh.on('join', (id, kind, whom) => {
