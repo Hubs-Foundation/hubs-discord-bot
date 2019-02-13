@@ -1,3 +1,4 @@
+const escapeStringRegexp = require('escape-string-regexp');
 const EventEmitter = require('events');
 const phoenix = require("phoenix-channels");
 const uuid = require("uuid");
@@ -10,6 +11,13 @@ const hubsBotJoinParameters = {
     avatarId: "" // todo: is this good?
   }
 };
+
+// Given a set of hostnames, return a regex that matches Hubs URLs hosted at any of the given
+// hostnames and extracts hub information from the matching URLs.
+function buildUrlRegex(hostnames) {
+  const hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
+  return new RegExp(`https?://(${hostClauses})/(\\w{7})(?:/(\\S*))?$`);
+}
 
 // State related to a single Hubs Phoenix channel subscription.
 class ReticulumChannel extends EventEmitter {
@@ -56,6 +64,9 @@ class ReticulumChannel extends EventEmitter {
       const sender = this.getName(session_id);
       if (stale_fields.includes('scene')) {
         this.emit('rescene', session_id, sender, hubs[0].scene);
+      }
+      if (stale_fields.includes('name')) {
+        this.emit('rename', session_id, sender, hubs[0].name);
       }
     });
 
@@ -124,7 +135,8 @@ class ReticulumClient {
 
   constructor(hostname) {
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
-      params: { session_id: uuid() }
+      params: { session_id: uuid() },
+      //logger: (kind, msg, data) => { console.log(`${kind}: ${msg} %j`, data); }
     });
   }
 
@@ -136,14 +148,15 @@ class ReticulumClient {
     });
   }
 
-  // Subscribes to the Phoenix channel for the given hub ID and resolves to the Phoenix channel object.
+  // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
+  // where `subscription` is the Phoenix channel object and `hub` is the hub metadata from Reticulum.
   async subscribeToHub(hubId) {
     const ch = this.socket.channel(`hub:${hubId}`, hubsBotJoinParameters);
     const subscription = new ReticulumChannel(ch);
-    await subscription.connect();
-    return subscription;
+    const hub = (await subscription.connect()).hubs[0];
+    return { hub, subscription };
   }
 
 }
 
-module.exports = { ReticulumClient, ReticulumChannel };
+module.exports = { buildUrlRegex, ReticulumClient, ReticulumChannel };

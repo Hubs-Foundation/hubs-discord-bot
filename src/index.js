@@ -6,9 +6,9 @@ dotenv.config({ path: ".env.defaults" });
 const VERBOSE = (process.env.VERBOSE === "true");
 
 const discord = require('discord.js');
-const { ChannelBindings } = require("./bindings.js");
+const { ChannelBindings, HubState } = require("./bindings.js");
 const { PresenceRollups } = require("./presence-rollups.js");
-const { ReticulumClient } = require("./reticulum.js");
+const { buildUrlRegex, ReticulumClient } = require("./reticulum.js");
 
 // Prepends a timestamp to a string.
 function ts(str) {
@@ -34,22 +34,20 @@ async function connectToDiscord(client, token) {
 
 // Gets the canonical Hubs webhook to post messages through for a Discord channel.
 async function getHubsWebhook(discordCh) {
-  return (await discordCh.fetchWebhooks()).first(); // todo: pretty unprincipled to do .first
-}
-
-async function establishBindings(reticulumClient, bindings, discordCh, hubId, hubUrl) {
-  console.info(ts(`Hubs room ${hubId} bound to Discord channel ${discordCh.id}; joining.`));
-  const webhook = await getHubsWebhook(discordCh);
-  const reticulumCh = await reticulumClient.subscribeToHub(hubId);
-  if (!webhook) {
+  const hooks = await discordCh.fetchWebhooks();
+  const hook = hooks.find(h => h.name === "Hubs") || hooks.first(); // todo: should we do this .first?
+  if (!hook) {
     if (VERBOSE) {
       console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
       discordCh.send("I found a Hubs URL in the topic, but no webhook exists in this channel yet, so it won't work.");
     }
-    return;
+    return null;
   }
-  bindings.associate(hubId, hubUrl, discordCh, reticulumCh, webhook);
+  return hook;
+}
 
+function establishBindings(reticulumCh, discordCh, webhook, state) {
+  console.info(ts(`Hubs room ${state.id} bound to Discord channel ${discordCh.id}; joining.`));
   const presenceRollups = new PresenceRollups();
   let lastPresenceMessage = null;
   presenceRollups.on('new', ({ kind, users }) => {
@@ -68,25 +66,25 @@ async function establishBindings(reticulumClient, bindings, discordCh, hubId, hu
   });
   reticulumCh.on('join', (id, kind, whom) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying join for ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying join for ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
     presenceRollups.arrive(id, whom, Date.now());
   });
   reticulumCh.on('leave', (id, kind, whom) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying leave for ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying leave for ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
     presenceRollups.depart(id, whom, Date.now());
   });
   reticulumCh.on('rescene', (id, whom, scene) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubId} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
-    discordCh.send(`${whom} changed the scene in ${hubUrl} to ${scene.name}.`);
+    webhook.send(`${whom} changed the scene in [${state.name}](${state.url}) to ${scene.name}.`);
   });
   reticulumCh.on("message", (id, whom, type, body) => {
     if (VERBOSE) {
-      const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${hubId} to channel ${discordCh.id}: %j`);
+      const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${state.id} to channel ${discordCh.id}: %j`);
       console.debug(msg, body);
     }
     if (type === "spawn") {
@@ -100,20 +98,6 @@ async function establishBindings(reticulumClient, bindings, discordCh, hubId, hu
       }
     }
   });
-}
-
-function updateBindings(reticulumClient, bindings, discordCh, prevHubId, currHubId, currHubUrl) {
-  if (prevHubId !== currHubId) {
-    if (prevHubId) {
-      console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${discordCh.id}; leaving.`));
-      bindings.stateByHub[prevHubId].reticulumCh.close();
-      bindings.dissociate(prevHubId);
-    }
-    if (currHubId) {
-      establishBindings(reticulumClient, bindings, discordCh, currHubId, currHubUrl);
-      discordCh.send(`<#${discordCh.id}> bound to hub at ${currHubUrl}.`);
-    }
-  }
 }
 
 async function start() {
@@ -133,18 +117,41 @@ async function start() {
   console.info(ts(`Binding to channels with Hubs hosts: ${hostnames.join(", ")}`));
 
   // one-time scan through all channels to look for existing bindings
-  const bindings = new ChannelBindings(hostnames);
+  const bindings = new ChannelBindings();
+  const topicRegex = buildUrlRegex(hostnames);
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
-    const { url: hubUrl, id: hubId } = bindings.getHub(chan.topic) || {};
-    if (hubId) {
-      await establishBindings(reticulumClient, bindings, chan, hubId, hubUrl);
+    const [_url, host, id, _slug] = (chan.topic || "").match(topicRegex) || [];
+    if (id) {
+      const { hub, subscription } = await reticulumClient.subscribeToHub(id);
+      const webhook = await getHubsWebhook(chan);
+      if (webhook) {
+        const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
+        bindings.associate(subscription, chan, webhook, state, host);
+        establishBindings(subscription, chan, webhook, state);
+      }
     }
   }
 
-  discordClient.on('channelUpdate', (oldChannel, newChannel) => {
-    const oldHubId = bindings.hubsByChannel[oldChannel.id];
-    const { url: newHubUrl, id: newHubId } = bindings.getHub(newChannel.topic) || {};
-    updateBindings(reticulumClient, bindings, newChannel, oldHubId, newHubId, newHubUrl);
+  discordClient.on('channelUpdate', async (oldChannel, newChannel) => {
+    const prevHubId = bindings.hubsByChannel[oldChannel.id];
+    const [currHubUrl, host, currHubId, _slug] = (newChannel.topic || "").match(topicRegex) || [];
+    if (prevHubId !== currHubId) {
+      if (prevHubId) {
+        console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
+        bindings.bindingsByHub[prevHubId].reticulumCh.close();
+        bindings.dissociate(prevHubId);
+      }
+      if (currHubId) {
+        const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
+        const webhook = await getHubsWebhook(newChannel);
+        if (webhook) {
+          const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
+          bindings.associate(subscription, newChannel, webhook, state, host);
+          establishBindings(subscription, newChannel, webhook, state);
+          webhook.send(`<#${newChannel.id}> bound to [${state.name}](${state.url}).`);
+        }
+      }
+    }
   });
 
   discordClient.on('message', msg => {
@@ -154,25 +161,25 @@ async function start() {
     }
     if (msg.channel.id in bindings.hubsByChannel) {
       const hubId = bindings.hubsByChannel[msg.channel.id];
-      const hubState = bindings.stateByHub[hubId];
+      const binding = bindings.bindingsByHub[hubId];
 
       if (msg.content === '!hubs users') {
-        const users = hubState.reticulumCh.getUsers();
+        const users = binding.reticulumCh.getUsers();
         const description = users.join(", ");
-        msg.channel.send(`Users currently in <${hubState.hubUrl}>: **${description}**`);
+        binding.webhook.send(`Users currently in [${binding.hubState.name}](${binding.hubState.url}): **${description}**`);
         return;
       }
 
       if (msg.author.id === discordClient.user.id) {
         return;
       }
-      if (msg.webhookID === hubState.webhook.id) {
+      if (msg.webhookID === binding.webhook.id) {
         return;
       }
       if (VERBOSE) {
         console.debug(ts(`Relaying message via channel ${msg.channel.id} to hub ${hubId}: ${msg.content}`));
       }
-      hubState.reticulumCh.sendMessage(msg.author.username, msg.content);
+      binding.reticulumCh.sendMessage(msg.author.username, msg.content);
     }
   });
 }
