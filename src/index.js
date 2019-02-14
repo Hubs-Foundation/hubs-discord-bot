@@ -52,16 +52,16 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
   let lastPresenceMessage = null;
   presenceRollups.on('new', ({ kind, users }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = discordCh.send(formatEvent(users, "arrived"));
+      lastPresenceMessage = webhook.send(formatEvent(users, "joined"));
     } else if (kind === "depart") {
-      lastPresenceMessage = discordCh.send(formatEvent(users, "departed"));
+      lastPresenceMessage = webhook.send(formatEvent(users, "left"));
     }
   });
   presenceRollups.on('update', ({ kind, users }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "arrived")));
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "joined")));
     } else if (kind === "depart") {
-      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "departed")));
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "left")));
     }
   });
   reticulumCh.on('join', (id, kind, whom) => {
