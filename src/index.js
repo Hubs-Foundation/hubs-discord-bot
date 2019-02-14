@@ -35,7 +35,7 @@ async function connectToDiscord(client, token) {
 // Gets the canonical Hubs webhook to post messages through for a Discord channel.
 async function getHubsWebhook(discordCh) {
   const hooks = await discordCh.fetchWebhooks();
-  const hook = hooks.find(h => h.name === "Hubs") || hooks.first(); // todo: should we do this .first?
+  const hook = hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first(); // todo: should we do this .first?
   if (!hook) {
     if (VERBOSE) {
       console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
