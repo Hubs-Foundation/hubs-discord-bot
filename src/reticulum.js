@@ -16,7 +16,7 @@ const hubsBotJoinParameters = {
 // hostnames and extracts hub information from the matching URLs.
 function buildUrlRegex(hostnames) {
   const hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
-  return new RegExp(`https?://(${hostClauses})/(\\w{7})(?:/(\\S*))?$`);
+  return new RegExp(`https?://(${hostClauses})/(\\w{7})(?:/(\\S*)/?)?$`);
 }
 
 // State related to a single Hubs Phoenix channel subscription.
