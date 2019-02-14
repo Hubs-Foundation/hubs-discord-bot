@@ -124,6 +124,7 @@ class ReticulumChannel extends EventEmitter {
     return Object.values(this.presence).map(info => info.metas[0].profile.displayName);
   }
 
+  // Sends a chat message that Hubs users will see in the chat box.
   sendMessage(name, body) {
     return this.channel.push("message", { type: "chat", from: name, body });
   }
@@ -135,8 +136,7 @@ class ReticulumClient {
 
   constructor(hostname) {
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
-      params: { session_id: uuid() },
-      //logger: (kind, msg, data) => { console.log(`${kind}: ${msg} %j`, data); }
+      params: { session_id: uuid() }
     });
   }
 
