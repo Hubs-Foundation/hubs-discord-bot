@@ -65,8 +65,8 @@ class ReticulumChannel extends EventEmitter {
       if (stale_fields.includes('scene')) {
         this.emit('rescene', session_id, sender, hubs[0].scene);
       }
-      if (stale_fields.includes('name')) {
-        this.emit('rename', session_id, sender, hubs[0].name);
+      if (stale_fields.includes('name')) { // for some reason it doesn't say that the slug is stale, but it is
+        this.emit('rename', session_id, sender, hubs[0].name, hubs[0].slug);
       }
     });
 

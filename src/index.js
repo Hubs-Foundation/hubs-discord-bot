@@ -82,6 +82,14 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
     }
     webhook.send(`${whom} changed the scene in [${state.name}](${state.url}) to ${scene.name}.`);
   });
+  reticulumCh.on('rename', (id, whom, name, slug) => {
+    state.name = name;
+    state.slug = slug;
+    if (VERBOSE) {
+      console.debug(ts(`Relaying name change by ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
+    }
+    webhook.send(`${whom} renamed the hub to [${state.name}](${state.url}).`);
+  });
   reticulumCh.on("message", (id, whom, type, body) => {
     if (VERBOSE) {
       const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${state.id} to channel ${discordCh.id}: %j`);
