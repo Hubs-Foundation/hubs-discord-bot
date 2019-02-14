@@ -130,12 +130,16 @@ async function start() {
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     const [_url, host, id, _slug] = (chan.topic || "").match(topicRegex) || [];
     if (id) {
-      const { hub, subscription } = await reticulumClient.subscribeToHub(id);
-      const webhook = await getHubsWebhook(chan);
-      if (webhook) {
-        const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
-        bindings.associate(subscription, chan, webhook, state, host);
-        establishBindings(subscription, chan, webhook, state);
+      try {
+        const { hub, subscription } = await reticulumClient.subscribeToHub(id);
+        const webhook = await getHubsWebhook(chan);
+        if (webhook) {
+          const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
+          bindings.associate(subscription, chan, webhook, state, host);
+          establishBindings(subscription, chan, webhook, state);
+        }
+      } catch (e) {
+        console.error(ts(`Failed to subscribe to hub ${id}:`), e);
       }
     }
   }
@@ -150,13 +154,17 @@ async function start() {
         bindings.dissociate(prevHubId);
       }
       if (currHubId) {
-        const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
-        const webhook = await getHubsWebhook(newChannel);
-        if (webhook) {
-          const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
-          bindings.associate(subscription, newChannel, webhook, state, host);
-          establishBindings(subscription, newChannel, webhook, state);
-          webhook.send(`<#${newChannel.id}> bound to [${state.name}](${state.url}).`);
+        try {
+          const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
+          const webhook = await getHubsWebhook(newChannel);
+          if (webhook) {
+            const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
+            bindings.associate(subscription, newChannel, webhook, state, host);
+            establishBindings(subscription, newChannel, webhook, state);
+            webhook.send(`<#${newChannel.id}> bound to [${state.name}](${state.url}).`);
+          }
+        } catch (e) {
+          console.error(ts(`Failed to subscribe to hub ${currHubId}:`), e);
         }
       }
     }

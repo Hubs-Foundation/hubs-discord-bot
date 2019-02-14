@@ -9,7 +9,7 @@ class HubState {
   }
 
   get url() {
-    return `https://${this.host}/${this.id}/${this.slug}`;
+    return `https://${this.host}/${this.id}/${this.slug}/`;
   }
 
 }
