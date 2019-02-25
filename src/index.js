@@ -15,6 +15,11 @@ function ts(str) {
   return `[${new Date().toISOString()}] ${str}`;
 }
 
+// Formats a message indicating that the user formerly known as `prev` is now known as `curr`.
+function formatRename(user) {
+  return `**${user.prevName}** changed their name to **${user.name}**.`;
+}
+
 // Formats a message of the form "Alice, Bob, and Charlie verbed."
 function formatEvent(users, verb) {
   if (users.length === 1) {
@@ -55,6 +60,8 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
       lastPresenceMessage = discordCh.send(formatEvent(users, "joined"));
     } else if (kind === "depart") {
       lastPresenceMessage = discordCh.send(formatEvent(users, "left"));
+    } else if (kind === "rename") {
+      lastPresenceMessage = discordCh.send(formatRename(users[0]));
     }
   });
   presenceRollups.on('update', ({ kind, users }) => {
@@ -62,6 +69,8 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
       lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "joined")));
     } else if (kind === "depart") {
       lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "left")));
+    } else if (kind === "rename") {
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatRename(users[0])));
     }
   });
   reticulumCh.on('join', (id, kind, whom) => {
@@ -80,7 +89,7 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
     if (VERBOSE) {
       console.debug(ts(`Relaying rename from ${prev} to ${curr} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
-    discordCh.send(`**${prev}** changed their name to **${curr}**.`);
+    presenceRollups.rename(id, prev, curr, Date.now());
   });
   reticulumCh.on('rescene', (id, whom, scene) => {
     if (VERBOSE) {

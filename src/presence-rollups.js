@@ -2,11 +2,13 @@ const EventEmitter = require('events');
 
 // Data structure for tracking the series of arrivals/departures in a hub and rolling it up
 // into a useful stream of Discord notifications. When new arrivals or departures happen, either
-// a new notification will be produced, or the most recent notification will be amended.
+// a new notification will be produced, or the most recent notification will be amended. If
+// a user renames themselves rapidly after arriving, the arrival will be amended to have their
+// new name.
 //
 // Fires two kinds of events:
 // - "new", indicating that a new notification should be produced announcing the arrival or
-//   departure of some set of users.
+//   departure of some set of users, or a rename of a user.
 // - "update", indicating that the previous notification should be amended and whichever users
 //   were announced in it should be replaced with the newly provided set of users.
 //
@@ -21,7 +23,7 @@ class PresenceRollups extends EventEmitter {
     super();
 
     // All of the notifications which have ever been produced, first to last.
-    this.entries = []; // { kind, users: [{ id, name }], timestamp }
+    this.entries = []; // { kind, users: [{ id, name, prevName }], timestamp }
 
     // All of the departures which we're waiting on to see whether the guy quickly rejoins.
     this.pendingDepartures = {}; // { name: [timeout] }
@@ -61,6 +63,24 @@ class PresenceRollups extends EventEmitter {
     }
     // create a new arrival notification
     const curr = { kind: "arrive", users: [{ id, name }], timestamp };
+    this.entries.push(curr);
+    this.emit("new", curr);
+  }
+
+  rename(id, prevName, name, timestamp) {
+    const prev = this.latest();
+    if (prev != null && prev.kind === "rename" || prev.kind === "arrive") {
+      const user = prev.users.find(u => u.id === id);
+      if (user != null) {
+        // update the last arrival or rename to have the new name
+        user.name = name;
+        prev.timestamp = timestamp;
+        this.emit("update", prev);
+        return;
+      }
+    }
+    // create a new rename notification
+    const curr = { kind: "rename", users: [{ id, name, prevName }], timestamp };
     this.entries.push(curr);
     this.emit("new", curr);
   }

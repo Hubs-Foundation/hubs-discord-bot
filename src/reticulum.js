@@ -142,7 +142,8 @@ class ReticulumClient {
 
   constructor(hostname) {
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
-      params: { session_id: uuid() }
+      params: { session_id: uuid() },
+      logger: function(msg, data) { console.log(`${msg} %j`, data); }
     });
   }
 
