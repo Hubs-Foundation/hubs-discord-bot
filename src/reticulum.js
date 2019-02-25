@@ -34,10 +34,16 @@ class ReticulumChannel extends EventEmitter {
       if (this.channel.socket.params.session_id === id) {
         return;
       }
-      if (curr != null && curr.metas != null && curr.metas.length > 0) {
-        return; // this guy was already in the lobby or room, don't notify again
-      }
       const mostRecent = p.metas[p.metas.length - 1];
+      if (curr != null && curr.metas != null && curr.metas.length > 0) {
+        // this guy was already in the lobby or room, notify iff their name changed
+        const previous = curr.metas[curr.metas.length - 1];
+        if (previous.profile && mostRecent.profile && previous.profile.displayName !== mostRecent.profile.displayName) {
+          this.emit('renameuser', id, mostRecent.presence, previous.profile.displayName, mostRecent.profile.displayName);
+        }
+        return;
+      }
+      // this guy was not previously present, notify for a join
       this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
     };
 
@@ -66,7 +72,7 @@ class ReticulumChannel extends EventEmitter {
         this.emit('rescene', session_id, sender, hubs[0].scene);
       }
       if (stale_fields.includes('name')) { // for some reason it doesn't say that the slug is stale, but it is
-        this.emit('rename', session_id, sender, hubs[0].name, hubs[0].slug);
+        this.emit('renamehub', session_id, sender, hubs[0].name, hubs[0].slug);
       }
     });
 
