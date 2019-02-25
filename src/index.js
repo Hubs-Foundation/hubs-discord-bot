@@ -52,9 +52,9 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
   let lastPresenceMessage = null;
   presenceRollups.on('new', ({ kind, users }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = webhook.send(formatEvent(users, "joined"));
+      lastPresenceMessage = discordCh.send(formatEvent(users, "joined"));
     } else if (kind === "depart") {
-      lastPresenceMessage = webhook.send(formatEvent(users, "left"));
+      lastPresenceMessage = discordCh.send(formatEvent(users, "left"));
     }
   });
   presenceRollups.on('update', ({ kind, users }) => {
@@ -80,13 +80,13 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
     if (VERBOSE) {
       console.debug(ts(`Relaying rename from ${prev} to ${curr} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
-    webhook.send(`**${prev}** changed their name to **${curr}**.`);
+    discordCh.send(`**${prev}** changed their name to **${curr}**.`);
   });
   reticulumCh.on('rescene', (id, whom, scene) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
-    webhook.send(`${whom} changed the scene in [${state.name}](${state.url}) to ${scene.name}.`);
+    discordCh.send(`${whom} changed the scene in [${state.name}](${state.url}) to ${scene.name}.`);
   });
   reticulumCh.on('renamehub', (id, whom, name, slug) => {
     state.name = name;
@@ -94,7 +94,7 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
     if (VERBOSE) {
       console.debug(ts(`Relaying name change by ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
     }
-    webhook.send(`${whom} renamed the hub to [${state.name}](${state.url}).`);
+    discordCh.send(`${whom} renamed the hub to [${state.name}](${state.url}).`);
   });
   reticulumCh.on("message", (id, whom, type, body) => {
     if (VERBOSE) {
