@@ -149,7 +149,7 @@ async function start() {
         const { hub, subscription } = await reticulumClient.subscribeToHub(id);
         const webhook = await getHubsWebhook(chan);
         if (webhook) {
-          const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
+          const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
           bindings.associate(subscription, chan, webhook, state, host);
           establishBindings(subscription, chan, webhook, state);
         }
@@ -173,7 +173,7 @@ async function start() {
           const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
           const webhook = await getHubsWebhook(newChannel);
           if (webhook) {
-            const state = new HubState(host, hub.hub_id, hub.name, hub.slug);
+            const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
             bindings.associate(subscription, newChannel, webhook, state, host);
             establishBindings(subscription, newChannel, webhook, state);
             webhook.send(`<#${newChannel.id}> bound to [${state.name}](${state.url}).`);
@@ -185,32 +185,48 @@ async function start() {
     }
   });
 
-  discordClient.on('message', msg => {
-    if (msg.content === '!hubs duck') {
-      msg.channel.send('Quack :duck:');
+  discordClient.on('message', async msg => {
+    const args = msg.content.split(' ');
+
+    // echo normal chat messages into the hub, if we're bound to a hub
+    if (args[0] !== "!hubs") {
+      if (msg.channel.id in bindings.hubsByChannel) {
+        const hubId = bindings.hubsByChannel[msg.channel.id];
+        const binding = bindings.bindingsByHub[hubId];
+        // don't echo our own messages
+        if (msg.author.id === discordClient.user.id) {
+          return;
+        }
+        if (msg.webhookID === binding.webhook.id) {
+          return;
+        }
+        if (VERBOSE) {
+          console.debug(ts(`Relaying message via channel ${msg.channel.id} to hub ${hubId}: ${msg.content}`));
+        }
+        binding.reticulumCh.sendMessage(msg.author.username, msg.content);
+      }
       return;
     }
-    if (msg.channel.id in bindings.hubsByChannel) {
-      const hubId = bindings.hubsByChannel[msg.channel.id];
-      const binding = bindings.bindingsByHub[hubId];
 
-      if (msg.content === '!hubs users') {
-        const users = binding.reticulumCh.getUsers();
-        const description = users.join(", ");
-        binding.webhook.send(`Users currently in [${binding.hubState.name}](${binding.hubState.url}): **${description}**`);
-        return;
+    if (args.length === 1 || args[1] === "status") {
+      if (msg.channel.id in bindings.hubsByChannel) {
+        const hubId = bindings.hubsByChannel[msg.channel.id];
+        const binding = bindings.bindingsByHub[hubId];
+        msg.channel.send(
+          `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
+            `🦆 <#${msg.channel.id}> bound to hub ${binding.hubState.name} (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
+            `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
+            `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
+        );
+      } else {
+        const webhook = await getHubsWebhook(msg.channel);
+        msg.channel.send(
+          `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
+            `🦆 This channel isn't bound to any hub. Use !hubs create or add a Hubs link to the topic to bind.\n` +
+            `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
+        );
       }
-
-      if (msg.author.id === discordClient.user.id) {
-        return;
-      }
-      if (msg.webhookID === binding.webhook.id) {
-        return;
-      }
-      if (VERBOSE) {
-        console.debug(ts(`Relaying message via channel ${msg.channel.id} to hub ${hubId}: ${msg.content}`));
-      }
-      binding.reticulumCh.sendMessage(msg.author.username, msg.content);
+      return;
     }
   });
 }

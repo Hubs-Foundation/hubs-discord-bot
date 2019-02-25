@@ -1,11 +1,12 @@
 // Represents our knowledge about a hub on a particular Reticulum server.
 class HubState {
 
-  constructor(host, id, name, slug) {
+  constructor(host, id, name, slug, ts) {
     this.host = host;
     this.id = id;
     this.name = name;
     this.slug = slug;
+    this.ts = ts;
   }
 
   get url() {
