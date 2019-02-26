@@ -55,7 +55,7 @@ async function getHubsWebhook(discordCh) {
 // Either sets the topic to something new, or complains that we didn't have the permissions.
 async function trySetTopic(discordCh, newTopic) {
   return discordCh.setTopic(newTopic).catch(e => {
-    if (!e instanceof discord.DiscordAPIError) {
+    if (!(e instanceof discord.DiscordAPIError)) {
       throw e;
     } else {
       discordCh.send("I don't seem to have permission to set the topic of the channel.");
@@ -179,7 +179,7 @@ async function start() {
     }
     // todo: fix awful race conditions for multiple updates before subscription is done
     const prevHubId = bindings.hubsByChannel[oldChannel.id];
-    const [currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
+    const [_currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
     if (prevHubId !== currHubId) {
       if (prevHubId) {
         console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
@@ -230,7 +230,7 @@ async function start() {
     switch (args[1]) {
 
     case undefined:
-    case "status":
+    case "status": {
       // "!hubs" == "!hubs status" == emit useful info about the current bot and hub state
       if (discordCh.id in bindings.hubsByChannel) {
         const hubId = bindings.hubsByChannel[discordCh.id];
@@ -250,8 +250,9 @@ async function start() {
         );
       }
       return;
+    }
 
-    case "bind":
+    case "bind": {
       // "!hubs bind" == if no hub is already bound, bind one and put it in the topic
       if (topicManager.matchHub(discordCh.topic)) {
         discordCh.send("A hub is already bound in the topic, so I am cowardly refusing to replace it.");
@@ -289,8 +290,9 @@ async function start() {
 
       // todo: help output?
       return;
+    }
 
-    case "unbind":
+    case "unbind": {
       // "!hubs unbind" == if a hub is bound, remove it
       if (!topicManager.matchHub(discordCh.topic)) {
         discordCh.send("No hub is bound in the topic, so doing nothing :eyes:");
@@ -299,10 +301,12 @@ async function start() {
 
       await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
       return;
+    }
 
-    default:
+    default: {
       // todo: help output?:
       return;
+    }
 
     }
 
