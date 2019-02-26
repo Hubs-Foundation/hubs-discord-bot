@@ -1,5 +1,5 @@
-const escapeStringRegexp = require('escape-string-regexp');
 const EventEmitter = require('events');
+const https = require('https');
 const phoenix = require("phoenix-channels");
 const uuid = require("uuid");
 
@@ -11,13 +11,6 @@ const hubsBotJoinParameters = {
     avatarId: "" // todo: is this good?
   }
 };
-
-// Given a set of hostnames, return a regex that matches Hubs URLs hosted at any of the given
-// hostnames and extracts hub information from the matching URLs.
-function buildUrlRegex(hostnames) {
-  const hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
-  return new RegExp(`https?://(${hostClauses})/(\\w{7})(?:/(\\S*)/?)?$`);
-}
 
 // State related to a single Hubs Phoenix channel subscription.
 class ReticulumChannel extends EventEmitter {
@@ -141,6 +134,7 @@ class ReticulumChannel extends EventEmitter {
 class ReticulumClient {
 
   constructor(hostname) {
+    this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
       params: { session_id: uuid() },
       logger: function(msg, data) { console.log(`${msg} %j`, data); }
@@ -155,6 +149,26 @@ class ReticulumClient {
     });
   }
 
+  // Creates a new hub with the name and scene, or a random scene if not specified. Returns the URL for the hub.
+  async createHub(name, sceneId) {
+    const endpoint = `https://${this.hostname}/api/v1/hubs`;
+    const headers = { "content-type": "application/json" };
+    const payload = { hub: { name } };
+    if (sceneId) {
+      payload.hub.scene_id = sceneId;
+    }
+
+    return await new Promise((resolve, reject) => {
+      const req = https.request(endpoint, { method: "POST", headers }, res => {
+        let json = "";
+        res.on("data", chunk => json += chunk);
+        res.on("end", () => resolve(JSON.parse(json)));
+      });
+      req.on("error", reject);
+      req.end(JSON.stringify(payload));
+    });
+  }
+
   // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
   // where `subscription` is the Phoenix channel object and `hub` is the hub metadata from Reticulum.
   async subscribeToHub(hubId) {
@@ -166,4 +180,4 @@ class ReticulumClient {
 
 }
 
-module.exports = { buildUrlRegex, ReticulumClient, ReticulumChannel };
+module.exports = { ReticulumClient, ReticulumChannel };

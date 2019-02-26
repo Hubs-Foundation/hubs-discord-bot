@@ -8,7 +8,8 @@ const VERBOSE = (process.env.VERBOSE === "true");
 const discord = require('discord.js');
 const { ChannelBindings, HubState } = require("./bindings.js");
 const { PresenceRollups } = require("./presence-rollups.js");
-const { buildUrlRegex, ReticulumClient } = require("./reticulum.js");
+const { ReticulumClient } = require("./reticulum.js");
+const { TopicManager } = require("./topic.js");
 
 // Prepends a timestamp to a string.
 function ts(str) {
@@ -49,6 +50,17 @@ async function getHubsWebhook(discordCh) {
     return null;
   }
   return hook;
+}
+
+// Either sets the topic to something new, or complains that we didn't have the permissions.
+async function trySetTopic(discordCh, newTopic) {
+  return discordCh.setTopic(newTopic).catch(e => {
+    if (!e instanceof discord.DiscordAPIError) {
+      throw e;
+    } else {
+      discordCh.send("I don't seem to have permission to set the topic of the channel.");
+    }
+  });
 }
 
 function establishBindings(reticulumCh, discordCh, webhook, state) {
@@ -139,11 +151,12 @@ async function start() {
   const hostnames = process.env.HUBS_HOSTS.split(",");
   console.info(ts(`Binding to channels with Hubs hosts: ${hostnames.join(", ")}`));
 
-  // one-time scan through all channels to look for existing bindings
   const bindings = new ChannelBindings();
-  const topicRegex = buildUrlRegex(hostnames);
+  const topicManager = new TopicManager(hostnames);
+
+  // one-time scan through all channels to look for existing bindings
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
-    const [_url, host, id, _slug] = (chan.topic || "").match(topicRegex) || [];
+    const [_url, host, id, _slug] = topicManager.matchHub(chan.topic || "") || [];
     if (id) {
       try {
         const { hub, subscription } = await reticulumClient.subscribeToHub(id);
@@ -160,8 +173,9 @@ async function start() {
   }
 
   discordClient.on('channelUpdate', async (oldChannel, newChannel) => {
+    console.log("%j %j", oldChannel, newChannel);
     const prevHubId = bindings.hubsByChannel[oldChannel.id];
-    const [currHubUrl, host, currHubId, _slug] = (newChannel.topic || "").match(topicRegex) || [];
+    const [currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
     if (prevHubId !== currHubId) {
       if (prevHubId) {
         console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
@@ -187,11 +201,12 @@ async function start() {
 
   discordClient.on('message', async msg => {
     const args = msg.content.split(' ');
+    const discordCh = msg.channel;
 
     // echo normal chat messages into the hub, if we're bound to a hub
     if (args[0] !== "!hubs") {
-      if (msg.channel.id in bindings.hubsByChannel) {
-        const hubId = bindings.hubsByChannel[msg.channel.id];
+      if (discordCh.id in bindings.hubsByChannel) {
+        const hubId = bindings.hubsByChannel[discordCh.id];
         const binding = bindings.bindingsByHub[hubId];
         // don't echo our own messages
         if (msg.author.id === discordClient.user.id) {
@@ -201,33 +216,90 @@ async function start() {
           return;
         }
         if (VERBOSE) {
-          console.debug(ts(`Relaying message via channel ${msg.channel.id} to hub ${hubId}: ${msg.content}`));
+          console.debug(ts(`Relaying message via channel ${discordCh.id} to hub ${hubId}: ${msg.content}`));
         }
         binding.reticulumCh.sendMessage(msg.author.username, msg.content);
       }
       return;
     }
 
-    if (args.length === 1 || args[1] === "status") {
-      if (msg.channel.id in bindings.hubsByChannel) {
-        const hubId = bindings.hubsByChannel[msg.channel.id];
+    switch (args[1]) {
+
+    case undefined:
+    case "status":
+      // "!hubs" == "!hubs status" == emit useful info about the current bot and hub state
+      if (discordCh.id in bindings.hubsByChannel) {
+        const hubId = bindings.hubsByChannel[discordCh.id];
         const binding = bindings.bindingsByHub[hubId];
-        msg.channel.send(
+        discordCh.send(
           `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
-            `🦆 <#${msg.channel.id}> bound to hub ${binding.hubState.name} (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
+            `🦆 <#${discordCh.id}> bound to hub ${binding.hubState.name} (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
             `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
             `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
         );
       } else {
         const webhook = await getHubsWebhook(msg.channel);
-        msg.channel.send(
+        discordCh.send(
           `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
             `🦆 This channel isn't bound to any hub. Use !hubs create or add a Hubs link to the topic to bind.\n` +
             `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
         );
       }
       return;
+
+    case "bind":
+      // "!hubs bind" == if no hub is already bound, bind one and put it in the topic
+      if (topicManager.matchHub(discordCh.topic)) {
+        discordCh.send("A hub is already bound in the topic, so I am cowardly refusing to replace it.");
+        return;
+      }
+
+      // valid options:
+      //
+      // !hubs bind [hub URL] -- bind the given existing hub URL
+      // !hubs bind [scene URL] [name] -- create and bind a new hub
+
+      if (args.length == 2) { // !hubs bind
+        const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.trimStart("#"));
+        await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+        return;
+      }
+
+      const hub = topicManager.matchHub(args[2]);
+      if (hub) { // !hubs bind [hub URL]
+        const [hubUrl, ..._rest] = hub;
+        await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+        return;
+      }
+
+      const scene = topicManager.matchScene(args[2]);
+      if (scene) { // !hubs bind [scene URL] [name]
+        const [_url, _host, sceneId, ..._rest] = scene;
+        const name = args[3] || discordCh.name.trimStart("#");
+        const { url: hubUrl } = await reticulumClient.createHub(name, sceneId);
+        await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+        return;
+      }
+
+      // todo: help output?
+      return;
+
+    case "unbind":
+      // "!hubs unbind" == if a hub is bound, remove it
+      if (!topicManager.matchHub(discordCh.topic)) {
+        discordCh.send("No hub is bound in the topic, so doing nothing :eyes:");
+        return;
+      }
+
+      await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
+      return;
+
+    default:
+      // todo: help output?:
+      return;
+
     }
+
   });
 }
 
