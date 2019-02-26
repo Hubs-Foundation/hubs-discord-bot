@@ -4,12 +4,23 @@ dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
 
 const VERBOSE = (process.env.VERBOSE === "true");
+const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 
 const discord = require('discord.js');
 const { ChannelBindings, HubState } = require("./bindings.js");
 const { PresenceRollups } = require("./presence-rollups.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
+
+// Debounces invocations of the wrapped asynchronous function such that concurrent calls
+// will be signed up as continuations on the completion of the running call.
+function debounce(fn) {
+  var curr = Promise.resolve();
+  return function() {
+    var args = Array.prototype.slice.call(arguments);
+    curr = curr.then(_ => fn.apply(this, args));
+  };
+}
 
 // Prepends a timestamp to a string.
 function ts(str) {
@@ -148,13 +159,11 @@ async function start() {
   await reticulumClient.connect();
   console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${reticulumClient.socket.params.session_id}).`));
 
-  const hostnames = process.env.HUBS_HOSTS.split(",");
-  console.info(ts(`Binding to channels with Hubs hosts: ${hostnames.join(", ")}`));
-
   const bindings = new ChannelBindings();
-  const topicManager = new TopicManager(hostnames);
+  const topicManager = new TopicManager(HOSTNAMES);
 
   // one-time scan through all channels to look for existing bindings
+  console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     const [_url, host, id, _slug] = topicManager.matchHub(chan.topic || "") || [];
     if (id) {
@@ -172,18 +181,17 @@ async function start() {
     }
   }
 
-  discordClient.on('channelUpdate', async (oldChannel, newChannel) => {
-    if (oldChannel.topic === newChannel.topic) {
-      // technically, this check shouldn't be necessary, but it's masking race conditions
-      return;
-    }
-    // todo: fix awful race conditions for multiple updates before subscription is done
+  // technically, subscribing to this event down here seems like it will drop any channel updates
+  // that happen concurrently with our original scan above. however, it would be an equally large pain
+  // in the butt to try to synchronize this even handler with the scanning code in a way that doesn't
+  // leave big race conditions, so this is a reasonable lesser evil for now.
+  discordClient.on('channelUpdate', debounce(async (oldChannel, newChannel) => {
     const prevHubId = bindings.hubsByChannel[oldChannel.id];
     const [_currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
     if (prevHubId !== currHubId) {
       if (prevHubId) {
         console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
-        bindings.bindingsByHub[prevHubId].reticulumCh.close();
+        await bindings.bindingsByHub[prevHubId].reticulumCh.close();
         bindings.dissociate(prevHubId);
       }
       if (currHubId) {
@@ -194,14 +202,14 @@ async function start() {
             const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
             bindings.associate(subscription, newChannel, webhook, state, host);
             establishBindings(subscription, newChannel, webhook, state);
-            webhook.send(`<#${newChannel.id}> bound to [${state.name}](${state.url}).`);
+            await newChannel.send(`<#${newChannel.id}> bound to ${state.url}.`);
           }
         } catch (e) {
           console.error(ts(`Failed to subscribe to hub ${currHubId}:`), e);
         }
       }
     }
-  });
+  }));
 
   discordClient.on('message', async msg => {
     const args = msg.content.split(' ');
@@ -236,7 +244,7 @@ async function start() {
         const hubId = bindings.hubsByChannel[discordCh.id];
         const binding = bindings.bindingsByHub[hubId];
         discordCh.send(
-          `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
+          `I am the Hubs Discord bot, linking to any hubs I see on ${HOSTNAMES.join(", ")}.\n\n` +
             `🦆 <#${discordCh.id}> bound to hub "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
             `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
             `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
@@ -244,7 +252,7 @@ async function start() {
       } else {
         const webhook = await getHubsWebhook(msg.channel);
         discordCh.send(
-          `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
+          `I am the Hubs Discord bot, linking to any hubs I see on ${HOSTNAMES.join(", ")}.\n\n` +
             `🦆 This channel isn't bound to any hub. Use !hubs create or add a Hubs link to the topic to bind.\n` +
             `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
         );

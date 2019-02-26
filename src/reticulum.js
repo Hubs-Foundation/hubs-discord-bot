@@ -106,8 +106,12 @@ class ReticulumChannel extends EventEmitter {
     });
   }
 
-  close() {
-    return this.channel.leave();
+  async close() {
+    return new Promise((resolve, reject) => {
+      this.channel.leave()
+        .receive("ok", resolve)
+        .receive("timeout", reject);
+    });
   }
 
   getName(sessionId) {
