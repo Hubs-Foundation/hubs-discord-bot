@@ -173,7 +173,11 @@ async function start() {
   }
 
   discordClient.on('channelUpdate', async (oldChannel, newChannel) => {
-    console.log("%j %j", oldChannel, newChannel);
+    if (oldChannel.topic === newChannel.topic) {
+      // technically, this check shouldn't be necessary, but it's masking race conditions
+      return;
+    }
+    // todo: fix awful race conditions for multiple updates before subscription is done
     const prevHubId = bindings.hubsByChannel[oldChannel.id];
     const [currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
     if (prevHubId !== currHubId) {
@@ -233,7 +237,7 @@ async function start() {
         const binding = bindings.bindingsByHub[hubId];
         discordCh.send(
           `I am the Hubs Discord bot, linking to any hubs I see on ${hostnames.join(", ")}.\n\n` +
-            `🦆 <#${discordCh.id}> bound to hub ${binding.hubState.name} (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
+            `🦆 <#${discordCh.id}> bound to hub "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
             `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
             `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
         );
@@ -258,6 +262,8 @@ async function start() {
       //
       // !hubs bind [hub URL] -- bind the given existing hub URL
       // !hubs bind [scene URL] [name] -- create and bind a new hub
+
+      // todo: fix awful race conditions for multiple binds operating concurrently
 
       if (args.length == 2) { // !hubs bind
         const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.trimStart("#"));
