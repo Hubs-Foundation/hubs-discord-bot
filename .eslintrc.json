@@ -2,7 +2,7 @@
   "rules": {
     "no-console": "off",
     "no-process-exit": "off",
-    "no-unused-vars": ["error", { "varsIgnorePattern": "^_" }]
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }]
   },
   "extends": ["eslint:recommended", "plugin:node/recommended"]
 }

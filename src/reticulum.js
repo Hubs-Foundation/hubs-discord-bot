@@ -99,7 +99,6 @@ class ReticulumChannel extends EventEmitter {
       }
       const sender = from || this.getName(session_id);
       this.emit('message', session_id, sender, type, body);
-
     });
 
     return new Promise((resolve, reject) => {
