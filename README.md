@@ -19,7 +19,7 @@ The primary function of the bot is to establish a 1:1 linkage between a Discord 
 
 1. Use the [invite link][bot-invite] to invite the bot to your guild.
 
-2. Give the bot [appropriate permissions][#Permissions] on the channels you want it to run in.
+2. Give the bot [appropriate permissions](#Permissions) on the channels you want it to run in.
 
 3. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
    send Hubs status updates.
@@ -50,7 +50,7 @@ But if you want to hack it, run it yourself, or point it at your own Hubs rooms,
 
 4. [Create a Discord bot on the Discord website.][discord-docs]
 
-5. Create an `.env` file with your bot's API token. If you want it to work with rooms on hubs.mozilla.com, also include `RETICULUM_HOST=hubs.mozilla.com` and `HUBS_HOSTS=hubs.mozilla.com`. You can see the different configuration bits you can override in [`.env.default`][./.env.defaults]. You can also pass these values as environment variables when you run `npm start`.
+5. Create an `.env` file with your bot's API token. If you want it to work with rooms on hubs.mozilla.com, also include `RETICULUM_HOST=hubs.mozilla.com` and `HUBS_HOSTS=hubs.mozilla.com`. You can see the different configuration bits you can override in [`.env.default`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
 
 6. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
 
