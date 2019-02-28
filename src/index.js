@@ -309,7 +309,7 @@ async function start() {
         return;
       }
 
-      // todo: help output?
+      discordCh.send(HELP_TEXT);
       return;
     }
 
