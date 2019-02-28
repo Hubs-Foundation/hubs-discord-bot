@@ -3,6 +3,9 @@ const https = require('https');
 const phoenix = require("phoenix-channels");
 const uuid = require("uuid");
 
+// The URL for the scene used if users create a new room but don't specify a scene.
+const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json";
+
 // The metadata passed for the Hubs bot user when joining a Hubs room.
 const hubsBotJoinParameters = {
   context: { mobile: false, hmd: false },
@@ -158,8 +161,12 @@ class ReticulumClient {
     const endpoint = `https://${this.hostname}/api/v1/hubs`;
     const headers = { "content-type": "application/json" };
     const payload = { hub: { name } };
+
+    // wow, what a hack
     if (sceneId) {
       payload.hub.scene_id = sceneId;
+    } else {
+      payload.hub.default_environment_gltf_bundle_url = DEFAULT_BUNDLE_URL;
     }
 
     return await new Promise((resolve, reject) => {
