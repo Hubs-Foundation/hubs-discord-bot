@@ -211,6 +211,18 @@ async function start() {
     }
   }));
 
+  const HELP_TEXT = "Bot command usage:\n\n" +
+        "🦆 `!hubs status` - Emits general information about the Hubs integration with the current Discord channel.\n" +
+        "🦆 `!hubs bind [room URL]` - Puts the given Hubs room URL into the topic of the room. " +
+        "(Rooms linked to in the topic will be bridged between Hubs and Discord.)\n" +
+        "🦆 `!hubs bind [scene URL] [name]` - Creates a new room with the given scene and name, " +
+        "or a default one if you don't provide a scene or name, and puts it into the topic.\n" +
+        "🦆 `!hubs unbind` - Removes the room URL from the topic.\n" +
+        "🦆 `!hubs users` - Lists the users currently in the Hubs room bound to this channel.\n\n" +
+        "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
+        "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
+        "and more about how the bot binds channels to rooms.";
+
   discordClient.on('message', async msg => {
     const args = msg.content.split(' ');
     const discordCh = msg.channel;
@@ -228,18 +240,19 @@ async function start() {
           return;
         }
         if (VERBOSE) {
-          console.debug(ts(`Relaying message via channel ${discordCh.id} to hub ${hubId}: ${msg.content}`));
+          console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
         }
         binding.reticulumCh.sendMessage(msg.author.username, msg.content);
       }
       return;
     }
 
+    console.debug(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
+
     switch (args[1]) {
 
-    case undefined:
     case "status": {
-      // "!hubs" == "!hubs status" == emit useful info about the current bot and hub state
+      // "!hubs status" == emit useful info about the current bot and hub state
       if (discordCh.id in bindings.hubsByChannel) {
         const hubId = bindings.hubsByChannel[discordCh.id];
         const binding = bindings.bindingsByHub[hubId];
@@ -311,8 +324,23 @@ async function start() {
       return;
     }
 
+    case "users": {
+      // "!hubs users" == list users
+      if (discordCh.id in bindings.hubsByChannel) {
+        const hubId = bindings.hubsByChannel[discordCh.id];
+        const binding = bindings.bindingsByHub[hubId];
+        const users = binding.reticulumCh.getUsers();
+        const description = users.join(", ");
+        discordCh.send(`Users currently in <${binding.hubState.url}>: **${description}**`);
+      } else {
+        discordCh.send("No room is currently bound to this channel.");
+      }
+      return;
+    }
+
+    case undefined:
     default: {
-      // todo: help output?:
+      discordCh.send(HELP_TEXT);
       return;
     }
 
