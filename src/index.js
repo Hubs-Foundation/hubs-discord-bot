@@ -212,12 +212,12 @@ async function start() {
   }));
 
   const HELP_TEXT = "Bot command usage:\n\n" +
-        "🦆 `!hubs status` - Emits general information about the Hubs integration with the current Discord channel.\n" +
-        "🦆 `!hubs bind [room URL]` - Puts the given Hubs room URL into the topic of the room. " +
-        "(Rooms linked to in the topic will be bridged between Hubs and Discord.)\n" +
-        "🦆 `!hubs bind [scene URL] [name]` - Creates a new room with the given scene and name, " +
-        "or a default one if you don't provide a scene or name, and puts it into the topic.\n" +
-        "🦆 `!hubs unbind` - Removes the room URL from the topic.\n" +
+        "🦆 `!hubs bind` - Creates a default Hubs room and puts its URL into the channel topic. " +
+        "A room URL in the channel topic will be bridged between Hubs and Discord.\n" +
+        "🦆 `!hubs bind [room URL]` - Puts the given Hubs room URL into the topic.\n" +
+        "🦆 `!hubs bind [scene URL] [name]` - Creates a new room with the given scene and name, and puts its URL into the channel topic.\n" +
+        "🦆 `!hubs status` - Shows general information about the Hubs integration with the current Discord channel.\n" +
+        "🦆 `!hubs unbind` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bound to this channel.\n\n" +
         "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
@@ -257,16 +257,16 @@ async function start() {
         const hubId = bindings.hubsByChannel[discordCh.id];
         const binding = bindings.bindingsByHub[hubId];
         discordCh.send(
-          `I am the Hubs Discord bot, linking to any hubs I see on ${HOSTNAMES.join(", ")}.\n\n` +
-            `🦆 <#${discordCh.id}> bound to hub "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
+          `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
+            `🦆 <#${discordCh.id}> bound to Hubs room "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
             `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
             `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
         );
       } else {
         const webhook = await getHubsWebhook(msg.channel);
         discordCh.send(
-          `I am the Hubs Discord bot, linking to any hubs I see on ${HOSTNAMES.join(", ")}.\n\n` +
-            `🦆 This channel isn't bound to any hub. Use !hubs create or add a Hubs link to the topic to bind.\n` +
+          `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
+            `🦆 This channel isn't bound to any room on Hubs. Use !hubs to create or add a Hubs room to the topic to bind it.\n` +
             `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
         );
       }
@@ -276,7 +276,7 @@ async function start() {
     case "bind": {
       // "!hubs bind" == if no hub is already bound, bind one and put it in the topic
       if (topicManager.matchHub(discordCh.topic)) {
-        discordCh.send("A hub is already bound in the topic, so I am cowardly refusing to replace it.");
+        discordCh.send("A Hubs room is already bound in the topic, so I am cowardly refusing to replace it.");
         return;
       }
 
@@ -316,7 +316,7 @@ async function start() {
     case "unbind": {
       // "!hubs unbind" == if a hub is bound, remove it
       if (!topicManager.matchHub(discordCh.topic)) {
-        discordCh.send("No hub is bound in the topic, so doing nothing :eyes:");
+        discordCh.send("No Hubs room is bound in the topic, so doing nothing :eyes:");
         return;
       }
 
@@ -333,7 +333,7 @@ async function start() {
         const description = users.join(", ");
         discordCh.send(`Users currently in <${binding.hubState.url}>: **${description}**`);
       } else {
-        discordCh.send("No room is currently bound to this channel.");
+        discordCh.send("No Hubs room is currently bound to this channel.");
       }
       return;
     }
