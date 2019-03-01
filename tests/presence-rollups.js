@@ -2,11 +2,10 @@ var test = require('tape');
 var { PresenceRollups } = require('../src/presence-rollups.js');
 
 test('PresenceRollups rolls up arrivals and departures correctly', function(t) {
-
   var q = new PresenceRollups({
-    arrive_rollup_leeway_ms: 1,
-    depart_rollup_leeway_ms: 2,
-    depart_rejoin_patience_ms: 10
+    arriveRollupLeewayMs: 1,
+    departRollupLeewayMs: 2,
+    departRejoinPatienceMs: 10
   });
   var log = [];
   function latest() {
@@ -35,6 +34,31 @@ test('PresenceRollups rolls up arrivals and departures correctly', function(t) {
   t.deepEqual(latest(), { e: 'new', kind: 'depart', users: [{ id: 2, name: 'Chili' }], timestamp: 12});
   q.finalizeDeparture(3, "David", 12);
   t.deepEqual(latest(), { e: 'update', kind: 'depart', users: [{ id: 2, name: 'Chili' }, { id: 3, name: 'David' }], timestamp: 12});
+
+  t.end();
+});
+
+test('PresenceRollups works even if the bot starts with people already present', function(t) {
+  var q = new PresenceRollups({
+    arriveRollupLeewayMs: 1,
+    departRollupLeewayMs: 1,
+    departRejoinPatienceMs: 1
+  });
+  var log = [];
+  function latest() {
+    return log[log.length - 1];
+  }
+  q.on("new", ev => log.push(Object.assign({ e: 'new' }, ev)));
+  q.on("update", ev => log.push(Object.assign({ e: 'update' }, ev)));
+
+  q.finalizeDeparture(0, "Alan", 1);
+  t.deepEqual(latest(), { e: 'new', kind: 'depart', users: [{ id: 0, name: 'Alan' }], timestamp: 1});
+  q.arrive(1, "Brenda", 2);
+  t.deepEqual(latest(), { e: 'new', kind: 'arrive', users: [{ id: 1, name: 'Brenda' }], timestamp: 2});
+  q.finalizeDeparture(2, "Charlie", 4);
+  t.deepEqual(latest(), { e: 'new', kind: 'depart', users: [{ id: 2, name: 'Charlie' }], timestamp: 4});
+  q.finalizeDeparture(1, "Brenda", 4);
+  t.deepEqual(latest(), { e: 'update', kind: 'depart', users: [{ id: 2, name: 'Charlie' }, { id: 1, name: 'Brenda' }], timestamp: 4});
 
   t.end();
 });

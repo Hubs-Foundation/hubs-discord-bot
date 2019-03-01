@@ -30,11 +30,11 @@ class PresenceRollups extends EventEmitter {
 
     this.options = Object.assign({
       // The duration for which we wait to roll up multiple people's arrivals.
-      arrive_rollup_leeway_ms: 60 * 1000,
+      arriveRollupLeewayMs: 60 * 1000,
       // The duration for which we wait to roll up multiple people's departures.
-      depart_rollup_leeway_ms: 60 * 1000,
+      departRollupLeewayMs: 60 * 1000,
       // The duration for which we wait for someone to rejoin before we announce their departure.
-      depart_rejoin_patience_ms: 15 * 1000,
+      departRejoinPatienceMs: 15 * 1000,
     }, options);
   }
 
@@ -53,7 +53,7 @@ class PresenceRollups extends EventEmitter {
     const prev = this.latest();
     if (prev != null && prev.kind === "arrive") {
       const elapsed = timestamp - prev.timestamp;
-      if (elapsed <= this.options.arrive_rollup_leeway_ms ) {
+      if (elapsed <= this.options.arriveRollupLeewayMs ) {
         // roll it up into the last arrival notification
         prev.users.push({ id, name });
         prev.timestamp = timestamp;
@@ -87,7 +87,7 @@ class PresenceRollups extends EventEmitter {
 
   depart(id, name, timestamp) {
     // we don't know yet whether this person might quickly rejoin, so wait and see
-    const delay = this.options.depart_rejoin_patience_ms;
+    const delay = this.options.departRejoinPatienceMs;
     const pending = this.pendingDepartures[name] || (this.pendingDepartures[name] = []);
     pending.push(setTimeout(() => { this.finalizeDeparture(id, name, timestamp + delay); }, delay));
   }
@@ -97,7 +97,7 @@ class PresenceRollups extends EventEmitter {
     const prev = this.latest();
     if (prev != null && prev.kind === "depart") {
       const elapsed = timestamp - prev.timestamp;
-      if (elapsed <= this.options.depart_rollup_leeway_ms) {
+      if (elapsed <= this.options.departRollupLeewayMs) {
         // roll it up into the last departure notification
         prev.users.push({ id, name });
         prev.timestamp = timestamp;
