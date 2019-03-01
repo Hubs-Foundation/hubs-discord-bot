@@ -75,7 +75,7 @@ async function trySetTopic(discordCh, newTopic) {
     if (!(e instanceof discord.DiscordAPIError)) {
       throw e;
     } else {
-      discordCh.send("I don't seem to have permission to set the topic of the channel.");
+      discordCh.send(`I don't seem to have "manage channel" permission in this channel, so I can't change the topic.`);
     }
   });
 }
