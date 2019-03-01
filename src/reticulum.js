@@ -15,6 +15,17 @@ const hubsBotJoinParameters = {
   }
 };
 
+// Converts a Phoenix message push object into a promise that resolves when the push
+// is acknowledged by Reticulum or rejects when it times out or Reticulum produces an error.
+function promisifyPush(push) {
+  return new Promise((resolve, reject) => {
+    return push
+      .receive("ok", resolve)
+      .receive("timeout", reject)
+      .receive("error", reject);
+  });
+}
+
 // State related to a single Hubs Phoenix channel subscription.
 class ReticulumChannel extends EventEmitter {
 
@@ -101,19 +112,11 @@ class ReticulumChannel extends EventEmitter {
       this.emit('message', session_id, sender, type, body);
     });
 
-    return new Promise((resolve, reject) => {
-      this.channel.join()
-        .receive("ok", resolve)
-        .receive("error", reject);
-    });
+    return promisifyPush(this.channel.join());
   }
 
   async close() {
-    return new Promise((resolve, reject) => {
-      this.channel.leave()
-        .receive("ok", resolve)
-        .receive("timeout", reject);
-    });
+    return promisifyPush(this.channel.leave());
   }
 
   getName(sessionId) {
@@ -131,7 +134,7 @@ class ReticulumChannel extends EventEmitter {
 
   // Sends a chat message that Hubs users will see in the chat box.
   sendMessage(name, body) {
-    return this.channel.push("message", { type: "chat", from: name, body });
+    this.channel.push("message", { type: "chat", from: name, body }); // no ack is expected
   }
 
 }
@@ -167,7 +170,7 @@ class ReticulumClient {
       payload.hub.default_environment_gltf_bundle_url = DEFAULT_BUNDLE_URL;
     }
 
-    return await new Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const req = https.request(endpoint, { method: "POST", headers }, res => {
         let json = "";
         res.on("data", chunk => json += chunk);

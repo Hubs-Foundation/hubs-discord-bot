@@ -12,14 +12,20 @@ const { PresenceRollups } = require("./presence-rollups.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
 
-// Debounces invocations of the wrapped asynchronous function such that concurrent calls
-// will be signed up as continuations on the completion of the running call.
-function debounce(fn) {
-  var curr = Promise.resolve();
-  return function() {
-    var args = Array.prototype.slice.call(arguments);
-    curr = curr.then(_ => fn.apply(this, args));
-  };
+// Serializes invocations of the tasks in the queue. Used to ensure that we completely finish processing
+// a single Discord event before processing the next one, e.g. we don't interleave work from a user command
+// and from a channel topic update, or from two channel topic updates in quick succession.
+class DiscordEventQueue {
+
+  constructor() {
+    this.curr = Promise.resolve();
+  }
+
+  // Enqueues the given function to run as soon as no other functions are currently running.
+  enqueue(fn) {
+    return this.curr = this.curr.then(_ => fn());
+  }
+
 }
 
 // Prepends a timestamp to a string.
@@ -161,55 +167,56 @@ async function start() {
 
   const bindings = new ChannelBindings();
   const topicManager = new TopicManager(HOSTNAMES);
+  const q = new DiscordEventQueue();
 
   // one-time scan through all channels to look for existing bindings
   console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
-    const [_url, host, id, _slug] = topicManager.matchHub(chan.topic || "") || [];
-    if (id) {
-      try {
-        const { hub, subscription } = await reticulumClient.subscribeToHub(id);
-        const webhook = await getHubsWebhook(chan);
-        if (webhook) {
-          const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
-          bindings.associate(subscription, chan, webhook, state, host);
-          establishBindings(subscription, chan, webhook, state);
-        }
-      } catch (e) {
-        console.error(ts(`Failed to subscribe to hub ${id}:`), e);
-      }
-    }
-  }
-
-  // technically, subscribing to this event down here seems like it will drop any channel updates
-  // that happen concurrently with our original scan above. however, it would be an equally large pain
-  // in the butt to try to synchronize this even handler with the scanning code in a way that doesn't
-  // leave big race conditions, so this is a reasonable lesser evil for now.
-  discordClient.on('channelUpdate', debounce(async (oldChannel, newChannel) => {
-    const prevHubId = bindings.hubsByChannel[oldChannel.id];
-    const [_currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
-    if (prevHubId !== currHubId) {
-      if (prevHubId) {
-        console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
-        await bindings.bindingsByHub[prevHubId].reticulumCh.close();
-        bindings.dissociate(prevHubId);
-      }
-      if (currHubId) {
+    q.enqueue(async () => {
+      const [_url, host, id, _slug] = topicManager.matchHub(chan.topic || "") || [];
+      if (id) {
         try {
-          const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
-          const webhook = await getHubsWebhook(newChannel);
+          const { hub, subscription } = await reticulumClient.subscribeToHub(id);
+          const webhook = await getHubsWebhook(chan);
           if (webhook) {
             const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
-            bindings.associate(subscription, newChannel, webhook, state, host);
-            establishBindings(subscription, newChannel, webhook, state);
-            await newChannel.send(`<#${newChannel.id}> bound to ${state.url}.`);
+            bindings.associate(subscription, chan, webhook, state, host);
+            establishBindings(subscription, chan, webhook, state);
           }
         } catch (e) {
-          console.error(ts(`Failed to subscribe to hub ${currHubId}:`), e);
+          console.error(ts(`Failed to subscribe to hub ${id}:`), e);
         }
       }
-    }
-  }));
+    });
+  }
+
+  discordClient.on('channelUpdate', (oldChannel, newChannel) => {
+    q.enqueue(async () => {
+      const prevHubId = bindings.hubsByChannel[oldChannel.id];
+      const [_currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
+      if (prevHubId !== currHubId) {
+        try {
+          if (prevHubId) {
+            console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
+            await bindings.bindingsByHub[prevHubId].reticulumCh.close();
+            bindings.dissociate(prevHubId);
+          }
+          if (currHubId) {
+            const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
+            const webhook = await getHubsWebhook(newChannel);
+            if (webhook) {
+              const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
+              bindings.associate(subscription, newChannel, webhook, state, host);
+              establishBindings(subscription, newChannel, webhook, state);
+              await newChannel.send(`<#${newChannel.id}> bound to ${state.url}.`);
+            }
+          }
+        } catch (e) {
+          console.error(ts(`Failed to update channel binding from ${prevHubId} to ${currHubId}:`), e);
+        }
+      }
+    });
+  });
 
   const HELP_TEXT = "Bot command usage:\n\n" +
         "🦆 `!hubs bind` - Creates a default Hubs room and puts its URL into the channel topic. " +
@@ -223,129 +230,123 @@ async function start() {
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
         "and more about how the bot binds channels to rooms.";
 
-  discordClient.on('message', async msg => {
-    const args = msg.content.split(' ');
-    const discordCh = msg.channel;
+  discordClient.on('message', msg => {
+    q.enqueue(async () => {
+      const args = msg.content.split(' ');
+      const discordCh = msg.channel;
 
-    // echo normal chat messages into the hub, if we're bound to a hub
-    if (args[0] !== "!hubs") {
-      if (discordCh.id in bindings.hubsByChannel) {
-        const hubId = bindings.hubsByChannel[discordCh.id];
-        const binding = bindings.bindingsByHub[hubId];
-        // don't echo our own messages
-        if (msg.author.id === discordClient.user.id) {
+      // echo normal chat messages into the hub, if we're bound to a hub
+      if (args[0] !== "!hubs") {
+        if (discordCh.id in bindings.hubsByChannel) {
+          const hubId = bindings.hubsByChannel[discordCh.id];
+          const binding = bindings.bindingsByHub[hubId];
+          // don't echo our own messages
+          if (msg.author.id === discordClient.user.id) {
+            return;
+          }
+          if (msg.webhookID === binding.webhook.id) {
+            return;
+          }
+          if (VERBOSE) {
+            console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
+          }
+          binding.reticulumCh.sendMessage(msg.author.username, msg.content);
+        }
+        return;
+      }
+
+      console.debug(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
+
+      switch (args[1]) {
+
+      case "status": {
+        // "!hubs status" == emit useful info about the current bot and hub state
+        if (discordCh.id in bindings.hubsByChannel) {
+          const hubId = bindings.hubsByChannel[discordCh.id];
+          const binding = bindings.bindingsByHub[hubId];
+          await discordCh.send(
+            `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
+              `🦆 <#${discordCh.id}> bound to Hubs room "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
+              `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
+              `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
+          );
+        } else {
+          const webhook = await getHubsWebhook(msg.channel);
+          await discordCh.send(
+            `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
+              `🦆 This channel isn't bound to any room on Hubs. Use !hubs to create or add a Hubs room to the topic to bind it.\n` +
+              `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
+          );
+        }
+        return;
+      }
+
+      case "bind": {
+        // "!hubs bind" == if no hub is already bound, bind one and put it in the topic
+        if (topicManager.matchHub(discordCh.topic)) {
+          await discordCh.send("A Hubs room is already bound in the topic, so I am cowardly refusing to replace it.");
           return;
         }
-        if (msg.webhookID === binding.webhook.id) {
+
+        if (args.length == 2) { // !hubs bind
+          const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.trimStart("#"));
+          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           return;
         }
-        if (VERBOSE) {
-          console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
+
+        const hub = topicManager.matchHub(args[2]);
+        if (hub) { // !hubs bind [hub URL]
+          const [hubUrl, ..._rest] = hub;
+          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+          return;
         }
-        binding.reticulumCh.sendMessage(msg.author.username, msg.content);
-      }
-      return;
-    }
 
-    console.debug(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
+        const scene = topicManager.matchScene(args[2]);
+        if (scene) { // !hubs bind [scene URL] [name]
+          const [_url, _host, sceneId, ..._rest] = scene;
+          const name = args[3] || discordCh.name.trimStart("#");
+          const { url: hubUrl } = await reticulumClient.createHub(name, sceneId);
+          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+          return;
+        }
 
-    switch (args[1]) {
-
-    case "status": {
-      // "!hubs status" == emit useful info about the current bot and hub state
-      if (discordCh.id in bindings.hubsByChannel) {
-        const hubId = bindings.hubsByChannel[discordCh.id];
-        const binding = bindings.bindingsByHub[hubId];
-        discordCh.send(
-          `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
-            `🦆 <#${discordCh.id}> bound to Hubs room "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
-            `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
-            `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
-        );
-      } else {
-        const webhook = await getHubsWebhook(msg.channel);
-        discordCh.send(
-          `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
-            `🦆 This channel isn't bound to any room on Hubs. Use !hubs to create or add a Hubs room to the topic to bind it.\n` +
-            `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
-        );
-      }
-      return;
-    }
-
-    case "bind": {
-      // "!hubs bind" == if no hub is already bound, bind one and put it in the topic
-      if (topicManager.matchHub(discordCh.topic)) {
-        discordCh.send("A Hubs room is already bound in the topic, so I am cowardly refusing to replace it.");
+        await discordCh.send(HELP_TEXT);
         return;
       }
 
-      // valid options:
-      //
-      // !hubs bind [hub URL] -- bind the given existing hub URL
-      // !hubs bind [scene URL] [name] -- create and bind a new hub
+      case "unbind": {
+        // "!hubs unbind" == if a hub is bound, remove it
+        if (!topicManager.matchHub(discordCh.topic)) {
+          await discordCh.send("No Hubs room is bound in the topic, so doing nothing :eyes:");
+          return;
+        }
 
-      // todo: fix awful race conditions for multiple binds operating concurrently
-
-      if (args.length == 2) { // !hubs bind
-        const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.trimStart("#"));
-        await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+        await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
         return;
       }
 
-      const hub = topicManager.matchHub(args[2]);
-      if (hub) { // !hubs bind [hub URL]
-        const [hubUrl, ..._rest] = hub;
-        await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+      case "users": {
+        // "!hubs users" == list users
+        if (discordCh.id in bindings.hubsByChannel) {
+          const hubId = bindings.hubsByChannel[discordCh.id];
+          const binding = bindings.bindingsByHub[hubId];
+          const users = binding.reticulumCh.getUsers();
+          const description = users.join(", ");
+          await discordCh.send(`Users currently in <${binding.hubState.url}>: **${description}**`);
+        } else {
+          await discordCh.send("No Hubs room is currently bound to this channel.");
+        }
         return;
       }
 
-      const scene = topicManager.matchScene(args[2]);
-      if (scene) { // !hubs bind [scene URL] [name]
-        const [_url, _host, sceneId, ..._rest] = scene;
-        const name = args[3] || discordCh.name.trimStart("#");
-        const { url: hubUrl } = await reticulumClient.createHub(name, sceneId);
-        await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+      case undefined:
+      default: {
+        await discordCh.send(HELP_TEXT);
         return;
       }
 
-      discordCh.send(HELP_TEXT);
-      return;
-    }
-
-    case "unbind": {
-      // "!hubs unbind" == if a hub is bound, remove it
-      if (!topicManager.matchHub(discordCh.topic)) {
-        discordCh.send("No Hubs room is bound in the topic, so doing nothing :eyes:");
-        return;
       }
-
-      await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
-      return;
-    }
-
-    case "users": {
-      // "!hubs users" == list users
-      if (discordCh.id in bindings.hubsByChannel) {
-        const hubId = bindings.hubsByChannel[discordCh.id];
-        const binding = bindings.bindingsByHub[hubId];
-        const users = binding.reticulumCh.getUsers();
-        const description = users.join(", ");
-        discordCh.send(`Users currently in <${binding.hubState.url}>: **${description}**`);
-      } else {
-        discordCh.send("No Hubs room is currently bound to this channel.");
-      }
-      return;
-    }
-
-    case undefined:
-    default: {
-      discordCh.send(HELP_TEXT);
-      return;
-    }
-
-    }
-
+    });
   });
 }
 
