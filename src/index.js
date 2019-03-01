@@ -198,8 +198,10 @@ async function start() {
         try {
           if (prevHubId) {
             console.info(ts(`Hubs room ${prevHubId} no longer bound to Discord channel ${oldChannel.id}; leaving.`));
-            await bindings.bindingsByHub[prevHubId].reticulumCh.close();
+            const { hubState, reticulumCh } = bindings.bindingsByHub[prevHubId];
+            await reticulumCh.close();
             bindings.dissociate(prevHubId);
+            await newChannel.send(`<#${newChannel.id}> no longer bound to <${hubState.url}>.`);
           }
           if (currHubId) {
             const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
