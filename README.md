@@ -45,7 +45,7 @@ You can and should assign these on a channel-by-channel basis to the bot role af
 ## Hacking on it
 
 If you just add the bot to your Discord guild, it will run on the Hubs servers and you don't need to do anything.
-But if you want to hack it, run it yourself, or point it at your own Hubs rooms, read on.
+But if you want to hack it, run it yourself, or point it at your own deployment of Hubs, read on.
 
 1. Clone this repository.
 
