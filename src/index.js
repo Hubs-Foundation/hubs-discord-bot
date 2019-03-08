@@ -298,8 +298,9 @@ async function start() {
 
         const hub = topicManager.matchHub(args[2]);
         if (hub) { // !hubs bind [hub URL]
-          const [hubUrl, ..._rest] = hub;
+          const [hubUrl, _host, hubId, ..._rest] = hub;
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+          await reticulumClient.bindHub(hubId, msg.channel.guild.id, msg.channel.id);
           return;
         }
 
@@ -324,6 +325,7 @@ async function start() {
         }
 
         await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
+        await reticulumClient.unbindHub(msg.channel.guild.id, msg.channel.id);
         return;
       }
 

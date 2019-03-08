@@ -2,6 +2,9 @@ const EventEmitter = require('events');
 const https = require('https');
 const phoenix = require("phoenix-channels");
 const uuid = require("uuid");
+const dotenv = require("dotenv");
+dotenv.config({ path: ".env" });
+dotenv.config({ path: ".env.defaults" });
 
 // The URL for the scene used if users create a new room but don't specify a scene.
 const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json";
@@ -157,10 +160,34 @@ class ReticulumClient {
     });
   }
 
+  async _request(method, path, payload) {
+    const endpoint = `https://${this.hostname}/api/v1/${path}`;
+    const headers = { 
+      "content-type": "application/json",
+      "x-ret-bot-access-key": process.env.RETICULUM_BOT_ACCESS_TOKEN
+    };
+
+    return new Promise((resolve, reject) => {
+      const req = https.request(endpoint, { method, headers }, res => {
+        let json = "";
+        res.on("data", chunk => json += chunk);
+        res.on("end", () => {
+          let result;
+          try {
+            result = JSON.parse(json)
+          } catch(e) {
+            // ignore json parsing errors
+          }
+          resolve(result)
+        });
+      })
+      req.on("error", reject);
+      req.end(JSON.stringify(payload));
+    });
+  }
+
   // Creates a new hub with the name and scene, or a random scene if not specified. Returns the URL for the hub.
   async createHub(name, sceneId) {
-    const endpoint = `https://${this.hostname}/api/v1/hubs`;
-    const headers = { "content-type": "application/json" };
     const payload = { hub: { name } };
 
     // wow, what a hack
@@ -170,15 +197,30 @@ class ReticulumClient {
       payload.hub.default_environment_gltf_bundle_url = DEFAULT_BUNDLE_URL;
     }
 
-    return new Promise((resolve, reject) => {
-      const req = https.request(endpoint, { method: "POST", headers }, res => {
-        let json = "";
-        res.on("data", chunk => json += chunk);
-        res.on("end", () => resolve(JSON.parse(json)));
-      });
-      req.on("error", reject);
-      req.end(JSON.stringify(payload));
-    });
+    return this._request("POST", "hubs", payload);
+  }
+
+  bindHub(hubId, guildId, channelId) {
+    const payload = {
+      hub_binding: {
+        hub_id: hubId,
+        type: "discord",
+        community_id: guildId,
+        channel_id: channelId
+      }
+    };
+    return this._request("POST", "hub_bindings", payload);
+  }
+
+  async unbindHub(guildId, channelId) {
+    const payload = {
+      hub_binding: {
+        type: "discord",
+        community_id: guildId,
+        channel_id: channelId
+      }
+    };
+    return this._request("DELETE", "hub_bindings", payload);
   }
 
   // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
