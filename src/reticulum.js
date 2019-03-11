@@ -162,9 +162,11 @@ class ReticulumClient {
 
   async _request(method, path, payload) {
     const endpoint = `https://${this.hostname}/api/v1/${path}`;
+    const payloadJson = JSON.stringify(payload);
     const headers = { 
       "content-type": "application/json",
-      "x-ret-bot-access-key": process.env.RETICULUM_BOT_ACCESS_TOKEN
+      "x-ret-bot-access-key": process.env.RETICULUM_BOT_ACCESS_TOKEN,
+      "content-length": Buffer.byteLength(payloadJson)
     };
 
     return new Promise((resolve, reject) => {
@@ -182,7 +184,7 @@ class ReticulumClient {
         });
       })
       req.on("error", reject);
-      req.end(JSON.stringify(payload));
+      req.end(payloadJson);
     });
   }
 
