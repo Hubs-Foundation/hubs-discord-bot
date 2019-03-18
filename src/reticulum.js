@@ -8,7 +8,7 @@ const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium
 
 // The metadata passed for the Hubs bot user when joining a Hubs room.
 const hubsBotJoinParameters = {
-  context: { mobile: false, hmd: false },
+  context: { mobile: false, hmd: false, discord: true },
   profile: {
     displayName: "Hubs Bot",
     avatarId: "" // todo: is this good?
