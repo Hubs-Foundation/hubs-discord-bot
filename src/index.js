@@ -173,18 +173,18 @@ async function start() {
   console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     q.enqueue(async () => {
-      const [_url, host, id, _slug] = topicManager.matchHub(chan.topic || "") || [];
-      if (id) {
+      const { hubUrl, hubId, hubSlug } = topicManager.matchHub(chan.topic) || {};
+      if (hubUrl) {
         try {
-          const { hub, subscription } = await reticulumClient.subscribeToHub(id);
+          const { hub, subscription } = await reticulumClient.subscribeToHub(hubId);
           const webhook = await getHubsWebhook(chan);
           if (webhook) {
-            const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
-            bindings.associate(subscription, chan, webhook, state, host);
+            const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
+            bindings.associate(subscription, chan, webhook, state, hubUrl.host);
             establishBindings(subscription, chan, webhook, state);
           }
         } catch (e) {
-          console.error(ts(`Failed to subscribe to hub ${id}:`), e);
+          console.error(ts(`Failed to subscribe to ${hubUrl}:`), e);
         }
       }
     });
@@ -193,7 +193,7 @@ async function start() {
   discordClient.on('channelUpdate', (oldChannel, newChannel) => {
     q.enqueue(async () => {
       const prevHubId = bindings.hubsByChannel[oldChannel.id];
-      const [_currHubUrl, host, currHubId, _slug] = topicManager.matchHub(newChannel.topic || "") || [];
+      const { hubUrl: currHubUrl, hubId: currHubId } = topicManager.matchHub(newChannel.topic) || {};
       if (prevHubId !== currHubId) {
         try {
           if (prevHubId) {
@@ -207,10 +207,10 @@ async function start() {
             const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
             const webhook = await getHubsWebhook(newChannel);
             if (webhook) {
-              const state = new HubState(host, hub.hub_id, hub.name, hub.slug, new Date());
-              bindings.associate(subscription, newChannel, webhook, state, host);
+              const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
+              bindings.associate(subscription, newChannel, webhook, state, currHubUrl.host);
               establishBindings(subscription, newChannel, webhook, state);
-              await newChannel.send(`<#${newChannel.id}> bound to ${state.url}.`);
+              await newChannel.send(`<#${newChannel.id}> bound to ${currHubUrl}.`);
             }
           }
         } catch (e) {
@@ -296,17 +296,15 @@ async function start() {
           return;
         }
 
-        const hub = topicManager.matchHub(args[2]);
-        if (hub) { // !hubs bind [hub URL]
-          const [hubUrl, ..._rest] = hub;
+        const { hubUrl } = topicManager.matchHub(args[2]) || {};
+        if (hubUrl) { // !hubs bind [hub URL]
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           return;
         }
 
-        const scene = topicManager.matchScene(args[2]);
-        if (scene) { // !hubs bind [scene URL] [name]
-          const [_url, _host, sceneId, ..._rest] = scene;
-          const name = args[3] || discordCh.name.trimStart("#");
+        const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
+        if (sceneUrl) { // !hubs bind [scene URL] [name]
+          const name = sceneSlug || discordCh.name.trimStart("#");
           const { url: hubUrl } = await reticulumClient.createHub(name, sceneId);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           return;
@@ -318,7 +316,8 @@ async function start() {
 
       case "unbind": {
         // "!hubs unbind" == if a hub is bound, remove it
-        if (!topicManager.matchHub(discordCh.topic)) {
+        const { hubUrl } = topicManager.matchHub(discordCh.topic) || {};
+        if (!hubUrl) {
           await discordCh.send("No Hubs room is bound in the topic, so doing nothing :eyes:");
           return;
         }
