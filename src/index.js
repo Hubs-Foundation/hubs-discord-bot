@@ -176,7 +176,7 @@ async function start() {
       const { hubUrl, hubId, hubSlug } = topicManager.matchHub(chan.topic) || {};
       if (hubUrl) {
         try {
-          const { hub, subscription } = await reticulumClient.subscribeToHub(hubId);
+          const { hub, subscription } = await reticulumClient.subscribeToHub(hubId, chan.name);
           const webhook = await getHubsWebhook(chan);
           if (webhook) {
             const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
@@ -204,7 +204,7 @@ async function start() {
             await newChannel.send(`<#${newChannel.id}> no longer bound to <${hubState.url}>.`);
           }
           if (currHubId) {
-            const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId);
+            const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId, newChannel.name);
             const webhook = await getHubsWebhook(newChannel);
             if (webhook) {
               const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());

@@ -21,12 +21,10 @@ class TopicManager {
   }
 
   matchHub(topic) {
-
     const [hubUrlStr, _host] = topic.match(this.hubUrlRe) || [];
     if (!hubUrlStr) {
       return null;
     }
-
     try {
       const hubUrl = new URL(hubUrlStr);
       {
