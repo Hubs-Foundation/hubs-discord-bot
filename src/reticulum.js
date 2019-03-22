@@ -75,13 +75,13 @@ class ReticulumChannel extends EventEmitter {
     });
 
     this.channel.on("pin", (data) => {
-      const { object_id, gltf_node, pinner } = data;
+      const { object_id, gltf_node, pinned_by } = data;
       if (gltf_node &&
           gltf_node.extensions &&
           gltf_node.extensions.HUBS_components &&
           gltf_node.extensions.HUBS_components.media &&
           gltf_node.extensions.HUBS_components.media.src) {
-        const sender = this.getName(pinner);
+        const sender = this.getName(pinned_by);
         this.emit('message', null, sender, "media", { src: gltf_node.extensions.HUBS_components.media.src });
       }
     });
