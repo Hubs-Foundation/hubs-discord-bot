@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
+const WebSocket = require('websocket').w3cwebsocket;
 const https = require('https');
-const phoenix = require("phoenix-channels");
+const phoenix = require("phoenix");
 const uuid = require("uuid");
 
 // The URL for the scene used if users create a new room but don't specify a scene.
@@ -128,6 +129,7 @@ class ReticulumClient {
   constructor(hostname) {
     this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
+      transport: WebSocket,
       params: { session_id: uuid() }
     });
   }
