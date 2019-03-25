@@ -197,17 +197,6 @@ class ReticulumClient {
     return this._request("POST", "hub_bindings", payload);
   }
 
-  async unbindHub(guildId, channelId) {
-    const payload = {
-      hub_binding: {
-        type: "discord",
-        community_id: guildId,
-        channel_id: channelId
-      }
-    };
-    return this._request("DELETE", "hub_bindings", payload);
-  }
-
   // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
   // where `subscription` is the Phoenix channel object and `hub` is the hub metadata from Reticulum.
   // The channel name is used to inform other users which Discord channel we're bridging to.
