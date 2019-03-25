@@ -9,15 +9,6 @@ dotenv.config({ path: ".env.defaults" });
 // The URL for the scene used if users create a new room but don't specify a scene.
 const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json";
 
-// The metadata passed for the Hubs bot user when joining a Hubs room.
-const hubsBotJoinParameters = {
-  context: { mobile: false, hmd: false },
-  profile: {
-    displayName: "Hubs Bot",
-    avatarId: "" // todo: is this good?
-  }
-};
-
 // Converts a Phoenix message push object into a promise that resolves when the push
 // is acknowledged by Reticulum or rejects when it times out or Reticulum produces an error.
 function promisifyPush(push) {
@@ -86,23 +77,15 @@ class ReticulumChannel extends EventEmitter {
       }
     });
 
-    this.channel.on("naf", ({ dataType, data, clientId }) => {
-      // if this message is to a particular client, it's catching that client up on
-      // something that already happened which everyone else knows, like a spawn, and
-      // we have no interest in echoing it to Discord again
-      if (clientId) {
-        return;
-      }
-
-      if (dataType === 'u' && data.isFirstSync) { // spawn an object
-        const sessionId = data.owner;
-        const sender = this.getName(sessionId);
-        if (data.components) {
-          const mediaLoader = Object.values(data.components).find(c => c != null && c.src);
-          if (mediaLoader) {
-            this.emit('message', sessionId, sender, "media", { src: mediaLoader.src });
-          }
-        }
+    this.channel.on("pin", (data) => {
+      const { object_id, gltf_node, pinned_by } = data;
+      if (gltf_node &&
+          gltf_node.extensions &&
+          gltf_node.extensions.HUBS_components &&
+          gltf_node.extensions.HUBS_components.media &&
+          gltf_node.extensions.HUBS_components.media.src) {
+        const sender = this.getName(pinned_by);
+        this.emit('message', null, sender, "media", { src: gltf_node.extensions.HUBS_components.media.src });
       }
     });
 
@@ -227,8 +210,16 @@ class ReticulumClient {
 
   // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
   // where `subscription` is the Phoenix channel object and `hub` is the hub metadata from Reticulum.
-  async subscribeToHub(hubId) {
-    const ch = this.socket.channel(`hub:${hubId}`, hubsBotJoinParameters);
+  // The channel name is used to inform other users which Discord channel we're bridging to.
+  async subscribeToHub(hubId, channelName) {
+    const payload = {
+      context: { mobile: false, hmd: false, discord: channelName },
+      profile: {
+        displayName: "Hubs Bot",
+        avatarId: "" // todo: is this good?
+      }
+    };
+    const ch = this.socket.channel(`hub:${hubId}`, payload);
     const subscription = new ReticulumChannel(ch);
     const hub = (await subscription.connect()).hubs[0];
     return { hub, subscription };
