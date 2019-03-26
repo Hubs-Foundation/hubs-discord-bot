@@ -225,7 +225,7 @@ async function start() {
         "A room URL in the channel topic will be bridged between Hubs and Discord.\n" +
         "🦆 `!hubs create [scene URL] [name]` - Creates a new room with the given scene and name, and puts its URL into the channel topic.\n" +
         "🦆 `!hubs status` - Shows general information about the Hubs integration with the current Discord channel.\n" +
-        "🦆 `!hubs unbridge` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
+        "🦆 `!hubs remove` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
         "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
@@ -310,8 +310,8 @@ async function start() {
         return;
       }
 
-      case "unbridge": {
-        // "!hubs unbridge" == if a hub is bridged, remove it
+      case "remove": {
+        // "!hubs remove" == if a hub is bridged, remove it
         const { hubUrl } = topicManager.matchHub(discordCh.topic) || {};
         if (!hubUrl) {
           await discordCh.send("No Hubs room is bridged in the topic, so doing nothing :eyes:");
