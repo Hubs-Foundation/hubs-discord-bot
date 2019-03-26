@@ -223,7 +223,6 @@ async function start() {
   const HELP_TEXT = "Bot command usage:\n\n" +
         "🦆 `!hubs create` - Creates a default Hubs room and puts its URL into the channel topic. " +
         "A room URL in the channel topic will be bridged between Hubs and Discord.\n" +
-        "🦆 `!hubs bridge [room URL]` - Puts the given Hubs room URL into the topic.\n" +
         "🦆 `!hubs create [scene URL] [name]` - Creates a new room with the given scene and name, and puts its URL into the channel topic.\n" +
         "🦆 `!hubs status` - Shows general information about the Hubs integration with the current Discord channel.\n" +
         "🦆 `!hubs unbridge` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
@@ -282,23 +281,6 @@ async function start() {
               `🦆 ${webhook ? `The webhook "${webhook.name}" (${webhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
           );
         }
-        return;
-      }
-
-      case "bridge": {
-        // "!hubs bridge" == if no hub is already bridged, bridge one and put it in the topic
-        if (topicManager.matchHub(discordCh.topic)) {
-          await discordCh.send("A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it.");
-          return;
-        }
-
-        const hub = topicManager.matchHub(args[2]);
-        if (hub) { // !hubs bridge [hub URL]
-          const { hubUrl } = hub;
-          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
-          return;
-        }
-
         return;
       }
 
