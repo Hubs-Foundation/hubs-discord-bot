@@ -1,6 +1,7 @@
 const EventEmitter = require('events');
+const WebSocket = require('websocket').w3cwebsocket;
 const https = require('https');
-const phoenix = require("phoenix-channels");
+const phoenix = require("phoenix");
 const uuid = require("uuid");
 const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
@@ -131,6 +132,7 @@ class ReticulumClient {
   constructor(hostname) {
     this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
+      transport: WebSocket,
       params: { session_id: uuid() }
     });
   }
