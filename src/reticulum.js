@@ -150,7 +150,7 @@ class ReticulumClient {
     const payloadJson = JSON.stringify(payload);
     const headers = { 
       "content-type": "application/json",
-      "x-ret-bot-access-key": process.env.RETICULUM_BOT_ACCESS_TOKEN,
+      "x-ret-bot-access-key": process.env.RETICULUM_BOT_ACCESS_KEY,
       "content-length": Buffer.byteLength(payloadJson)
     };
 
@@ -208,7 +208,8 @@ class ReticulumClient {
       profile: {
         displayName: "Hubs Bot",
         avatarId: "" // todo: is this good?
-      }
+      },
+      bot_access_key: process.env.RETICULUM_BOT_ACCESS_KEY
     };
     const ch = this.socket.channel(`hub:${hubId}`, payload);
     const subscription = new ReticulumChannel(ch);
