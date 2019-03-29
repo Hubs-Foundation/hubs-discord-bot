@@ -163,7 +163,7 @@ async function start() {
   const reticulumHost = process.env.RETICULUM_HOST;
   const reticulumClient = new ReticulumClient(reticulumHost);
   await reticulumClient.connect();
-  console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${reticulumClient.socket.params.session_id}).`));
+  console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${JSON.stringify(reticulumClient.socket.params().session_id)}).`));
 
   const bindings = new ChannelBindings();
   const topicManager = new TopicManager(HOSTNAMES);
@@ -258,7 +258,7 @@ async function start() {
         return;
       }
 
-      console.debug(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
+      console.info(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
 
       switch (args[1]) {
 
@@ -291,7 +291,7 @@ async function start() {
         }
 
         if (args.length == 2) { // !hubs create
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(discordCh.name.trimStart("#"));
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(discordCh.name);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
           return;
@@ -299,7 +299,7 @@ async function start() {
 
         const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
         if (sceneUrl) { // !hubs create [scene URL] [name]
-          const name = sceneSlug || discordCh.name.trimStart("#");
+          const name = sceneSlug || discordCh.name;
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(name, sceneId);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);

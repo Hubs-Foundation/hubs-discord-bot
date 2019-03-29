@@ -33,7 +33,7 @@ class ReticulumChannel extends EventEmitter {
   async connect() {
 
     const onJoin = (id, curr, p) => {
-      if (this.channel.socket.params.session_id === id) {
+      if (this.channel.socket.params().session_id === id) {
         return;
       }
       const mostRecent = p.metas[p.metas.length - 1];
@@ -50,7 +50,7 @@ class ReticulumChannel extends EventEmitter {
     };
 
     const onLeave = (id, curr, p) => {
-      if (this.channel.socket.params.session_id === id) {
+      if (this.channel.socket.params().session_id === id) {
         return;
       }
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
@@ -92,7 +92,7 @@ class ReticulumChannel extends EventEmitter {
 
     this.channel.on("message", ({ session_id, type, body, from }) => {
       // we sent this message ourselves just now, don't notify ourselves about it
-      if (this.channel.socket.params.session_id === session_id) {
+      if (this.channel.socket.params().session_id === session_id) {
         return;
       }
       const sender = from || this.getName(session_id);
