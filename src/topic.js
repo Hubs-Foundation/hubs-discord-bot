@@ -1,5 +1,5 @@
 const escapeStringRegexp = require('escape-string-regexp');
-const url = require('url');
+const URL = require('url').URL;
 
 const HUB_ID_RE = new RegExp("^\\w{7}$");
 const SCENE_ID_RE = new RegExp("^\\w{7}$");
@@ -62,7 +62,7 @@ class TopicManager {
     try {
       const sceneUrl = new URL(sceneUrlStr);
       // check for scene URL: https://hubs.mozilla.com/scenes/a0b1c2d/foo-bar
-      const pathElements = hubUrl.pathname.trimStart("/").split("/");
+      const pathElements = splitPath(sceneUrl.pathname);
       if (pathElements.length >= 1) {
         const sceneId = pathElements[0];
         if (sceneId != null && SCENE_ID_RE.test(sceneId)) {

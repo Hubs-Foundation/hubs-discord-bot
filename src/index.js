@@ -257,7 +257,7 @@ async function start() {
         return;
       }
 
-      console.debug(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
+      console.info(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
 
       switch (args[1]) {
 
@@ -291,7 +291,7 @@ async function start() {
         }
 
         if (args.length == 2) { // !hubs bind
-          const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.trimStart("#"));
+          const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.substring(1));
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           return;
         }
@@ -304,7 +304,7 @@ async function start() {
 
         const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
         if (sceneUrl) { // !hubs bind [scene URL] [name]
-          const name = sceneSlug || discordCh.name.trimStart("#");
+          const name = sceneSlug || discordCh.name.substring(1);
           const { url: hubUrl } = await reticulumClient.createHub(name, sceneId);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           return;
