@@ -21,7 +21,7 @@ class TopicManager {
   }
 
   matchHub(topic) {
-    const [hubUrlStr, _host] = topic.match(this.hubUrlRe) || [];
+    const [hubUrlStr, _host] = (topic || "").match(this.hubUrlRe) || [];
     if (!hubUrlStr) {
       return null;
     }
@@ -55,7 +55,7 @@ class TopicManager {
   };
 
   matchScene(topic) {
-    const [sceneUrlStr, _host] = topic.match(this.sceneRe) || [];
+    const [sceneUrlStr, _host] = (topic || "").match(this.sceneRe) || [];
     if (!sceneUrlStr) {
       return null;
     }
