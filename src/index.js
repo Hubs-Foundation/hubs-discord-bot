@@ -291,7 +291,7 @@ async function start() {
         }
 
         if (args.length == 2) { // !hubs bind
-          const { url: hubUrl } = await reticulumClient.createHub(discordCh.name.substring(1));
+          const { url: hubUrl } = await reticulumClient.createHub(discordCh.name);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           return;
         }
