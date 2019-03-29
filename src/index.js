@@ -163,7 +163,7 @@ async function start() {
   const reticulumHost = process.env.RETICULUM_HOST;
   const reticulumClient = new ReticulumClient(reticulumHost);
   await reticulumClient.connect();
-  console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${reticulumClient.socket.params.session_id}).`));
+  console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${JSON.stringify(reticulumClient.socket.params().session_id)}).`));
 
   const bindings = new ChannelBindings();
   const topicManager = new TopicManager(HOSTNAMES);
