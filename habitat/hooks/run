@@ -5,6 +5,7 @@ exec 2>&1
 set -e
 
 export TOKEN="{{ cfg.general.token }}"
+export RETICULUM_BOT_ACCESS_KEY="{{ cfg.general.reticulum_bot_access_key }}"
 export RETICULUM_HOST="{{ cfg.general.reticulum_host }}"
 export HUBS_HOSTS="{{ cfg.general.hubs_hosts }}"
 export SHARD_ID="{{ cfg.general.shard_id }}"
