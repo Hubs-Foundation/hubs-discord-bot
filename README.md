@@ -1,10 +1,8 @@
-# hubs-discord-bot
+# hubs-discord-bot (Beta)
 
-A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves) and lets you see who is currently in Hubs from Discord.
+A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves) and lets you see who is currently in Hubs from Discord. Check out the bot in action on the [Hubs development Discord][hubs-discord]!
 
-[Here's an invite link to add the bot to your server][bot-invite].
-
-Check out the bot in action on the [Hubs development Discord][hubs-discord]!
+[Request an invitation link to add the Discord Bot to a server you own][bot-invite] by emailing hubs@mozilla.com.
 
 * [Usage](#usage)
     * [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
@@ -22,7 +20,7 @@ The primary function of the bot is to establish a 1:1 linkage between a Discord 
 
 ### Great. I want to run this on my Discord server.
 
-1. Use the [invite link][bot-invite] to invite the bot to your guild.
+1. Request an [invite link][bot-invite] to invite the bot to your guild by emailing hubs@mozilla.com.
 
 2. Give the bot [appropriate permissions](#permissions) on the channels you want it to run in.
 
@@ -35,7 +33,7 @@ The primary function of the bot is to establish a 1:1 linkage between a Discord 
 
 The bot requires several permissions in order to work:
 
-- "Send messages," "Read messages," and "Embed links" are necessary for obvious reasons.
+- "Send messages," "Read messages," and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
 - "Manage webhooks" is necessary in order for the bot to find and use a webhook for bridging chat.
 - "Manage channels" is necessary if you want to use the bot's channel topic management. If you don't want the bot to put
   Hubs information in the topic, then you don't need it.
@@ -43,9 +41,8 @@ The bot requires several permissions in order to work:
 You can and should assign these on a channel-by-channel basis to the bot role after adding the bot to your guild.
 
 ## Hacking on it
-
 If you just add the bot to your Discord guild, it will run on the Hubs servers and you don't need to do anything.
-But if you want to hack it, run it yourself, or point it at your own deployment of Hubs, read on.
+But if you want to hack it, run it yourself, or point it at your own deployment of Hubs, read on. Please note that there may be some differences between a self-hosted version of the Hubs Discord bot and the one provided by Mozilla.
 
 1. Clone this repository.
 
@@ -64,4 +61,4 @@ But if you want to hack it, run it yourself, or point it at your own deployment 
 [npm]: https://nodejs.org/en/
 [discord-docs]: https://discordapp.com/developers/docs/intro
 [hubs-discord]: https://discord.gg/wHmY4nd
-[bot-invite]: https://discordapp.com/oauth2/authorize?client_id=509129921826914304&permissions=536890368&scope=bot
+[bot-invite]: mailto:hubs@mozilla.com
