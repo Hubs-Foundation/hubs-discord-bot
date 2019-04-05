@@ -1,6 +1,6 @@
 # hubs-discord-bot (Beta)
 
-A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves) and lets you see who is currently in Hubs from Discord. Check out the bot in action on the [Hubs development Discord][hubs-discord]!
+A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
 [Request an invitation link to add the Discord Bot to a server you own][bot-invite] by emailing hubs@mozilla.com.
 
@@ -15,8 +15,10 @@ The primary function of the bot is to establish a 1:1 linkage between a Discord 
 
 - Bridge text chat from the Discord channel into the Hubs room.
 - Bridge text chat from the Hubs room into the Discord channel.
-- Post links in Discord to media (images, videos, models) which are spawned in the Hubs room.
+- Post links in Discord to media (images, videos, models) which are pinned in the Hubs room.
 - Post in the Discord channel when someone joins or leaves the Hubs room, or if administrative stuff happens in the Hubs room.
+
+When a Hubs room is associated with a Discord channel, users will be assigned abilities in the Hubs room based on their Discord roles. For example, Discord owners and moderators will be able to change settings on a Hubs room and be able to moderate users in the room.
 
 ### Great. I want to run this on my Discord server.
 
@@ -27,7 +29,7 @@ The primary function of the bot is to establish a 1:1 linkage between a Discord 
 3. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
    send Hubs status updates.
 
-4. Try out the bot! Type `!hubs` in a channel the bot is in to see some things you can do. The bot will bind a Discord channel and a room if it sees the room URL in the topic of the channel.
+4. Try out the bot! Type `!hubs` in a channel the bot is in to see some things you can do. The bot will bridge a Discord channel and a room if it sees the room URL in the topic of the channel.
 
 ### Permissions
 
@@ -35,8 +37,7 @@ The bot requires several permissions in order to work:
 
 - "Send messages," "Read messages," and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
 - "Manage webhooks" is necessary in order for the bot to find and use a webhook for bridging chat.
-- "Manage channels" is necessary if you want to use the bot's channel topic management. If you don't want the bot to put
-  Hubs information in the topic, then you don't need it.
+- "Manage channels" is necessary in order for the bot to set the channel topic and bridge chat. **Note:** We do not ask for this permission globally when you add the bot to your server, instead we recommend you grant this permission to the bot in specific groups or channels.
 
 You can and should assign these on a channel-by-channel basis to the bot role after adding the bot to your guild.
 
