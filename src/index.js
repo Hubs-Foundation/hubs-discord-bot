@@ -139,15 +139,10 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
       const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${state.id} to channel ${discordCh.id}: %j`);
       console.debug(msg, body);
     }
-    if (type === "spawn") {
-      webhook.send(body.src, { username: whom });
-    } else if (type === "chat") {
+    if (type === "chat") {
       webhook.send(body, { username: whom });
     } else if (type === "media") {
-      // don't bother with media that is "boring", i.e. vendored by us, like chats, ducks, avatars, pens
-      if (!body.src.startsWith("https://asset-bundles-prod.reticulum.io")) {
-        webhook.send(body.src, { username: whom });
-      }
+      webhook.send(body.src, { username: whom });
     }
   });
 }
