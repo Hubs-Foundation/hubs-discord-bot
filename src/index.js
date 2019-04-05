@@ -5,6 +5,7 @@ dotenv.config({ path: ".env.defaults" });
 
 const VERBOSE = (process.env.VERBOSE === "true");
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
+const MEDIA_DEDUPLICATE_MS = 60 * 1000;
 
 const discord = require('discord.js');
 const { ChannelBindings, HubState } = require("./bindings.js");
@@ -83,6 +84,7 @@ async function trySetTopic(discordCh, newTopic) {
 function establishBindings(reticulumCh, discordCh, webhook, state) {
   console.info(ts(`Hubs room ${state.id} bound to Discord channel ${discordCh.id}; joining.`));
   const presenceRollups = new PresenceRollups();
+  const mediaBroadcasts = {}; // { url: timestamp }
   let lastPresenceMessage = null;
   presenceRollups.on('new', ({ kind, users }) => {
     if (kind === "arrive") {
@@ -142,6 +144,21 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
     if (type === "chat") {
       webhook.send(body, { username: whom });
     } else if (type === "media") {
+      // we really like to deduplicate media broadcasts of the same object in short succession,
+      // mostly because of the case where people are repositioning pinned media, but also because
+      // sometimes people will want to clone a bunch of one thing and pin them all in one go
+      const timestamp = Date.now();
+      const lastBroadcast = mediaBroadcasts[body.src];
+      if (lastBroadcast != null) {
+        const elapsedMs = timestamp - lastBroadcast;
+        if (elapsedMs <= MEDIA_DEDUPLICATE_MS) {
+          if (VERBOSE) {
+            console.debug(ts(`Declining to rebroadcast ${body.src} so soon after previous broadcast.`));
+          }
+          return;
+        }
+      }
+      mediaBroadcasts[body.src] = timestamp;
       webhook.send(body.src, { username: whom });
     }
   });

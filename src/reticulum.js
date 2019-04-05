@@ -79,7 +79,7 @@ class ReticulumChannel extends EventEmitter {
     });
 
     this.channel.on("pin", (data) => {
-      const { object_id, gltf_node, pinned_by } = data;
+      const { gltf_node, pinned_by } = data;
       if (gltf_node &&
           gltf_node.extensions &&
           gltf_node.extensions.HUBS_components &&
@@ -148,7 +148,7 @@ class ReticulumClient {
   async _request(method, path, payload) {
     const endpoint = `https://${this.hostname}/api/v1/${path}`;
     const payloadJson = JSON.stringify(payload);
-    const headers = { 
+    const headers = {
       "content-type": "application/json",
       "x-ret-bot-access-key": process.env.RETICULUM_BOT_ACCESS_KEY,
       "content-length": Buffer.byteLength(payloadJson)

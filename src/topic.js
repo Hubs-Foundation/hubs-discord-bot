@@ -52,7 +52,7 @@ class TopicManager {
     } catch (e) { /* not a valid URL */ }
 
     return null;
-  };
+  }
 
   matchScene(topic) {
     const [sceneUrlStr, _host] = (topic || "").match(this.sceneRe) || [];
