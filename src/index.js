@@ -248,7 +248,7 @@ async function start() {
           if (VERBOSE) {
             console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
           }
-          binding.reticulumCh.sendMessage(msg.author.username, msg.content);
+          binding.reticulumCh.sendMessage(msg.author.username, msg.cleanContent);
         }
         return;
       }
