@@ -55,7 +55,7 @@ class TopicManager {
   }
 
   matchScene(topic) {
-    const [sceneUrlStr, _host] = (topic || "").match(this.sceneRe) || [];
+    const [sceneUrlStr, _host] = (topic || "").match(this.sceneUrlRe) || [];
     if (!sceneUrlStr) {
       return null;
     }
@@ -64,10 +64,10 @@ class TopicManager {
       // check for scene URL: https://hubs.mozilla.com/scenes/a0b1c2d/foo-bar
       const pathElements = splitPath(sceneUrl.pathname);
       if (pathElements.length >= 1) {
-        const sceneId = pathElements[0];
+        const sceneId = pathElements[1]; // pathElements[0] === "scenes"
         if (sceneId != null && SCENE_ID_RE.test(sceneId)) {
-          if (pathElements.length >= 2) {
-            const sceneSlug = pathElements[1];
+          if (pathElements.length >= 3) {
+            const sceneSlug = pathElements[2];
             return { sceneUrl, sceneId, sceneSlug };
           } else {
             return { sceneUrl, sceneId };
