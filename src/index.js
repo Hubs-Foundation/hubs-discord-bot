@@ -24,7 +24,7 @@ class DiscordEventQueue {
 
   // Enqueues the given function to run as soon as no other functions are currently running.
   enqueue(fn) {
-    return this.curr = this.curr.then(_ => fn());
+    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack)));
   }
 
 }
