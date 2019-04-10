@@ -8,6 +8,9 @@ pkg_description="Discord bot for Hubs by Mozilla"
 pkg_deps=(
   core/node/11.2.0
 )
+pkg_build_deps=(
+  core/git
+)
 
 do_build() {
   npm ci
