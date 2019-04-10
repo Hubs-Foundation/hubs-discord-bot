@@ -59,15 +59,7 @@ async function connectToDiscord(client, token) {
 // Gets the canonical Hubs webhook to post messages through for a Discord channel.
 async function getHubsWebhook(discordCh) {
   const hooks = await discordCh.fetchWebhooks();
-  const hook = hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first(); // todo: should we do this .first?
-  if (!hook) {
-    if (VERBOSE) {
-      console.debug(ts(`Discord channel ${discordCh.id} has a Hubs link in the topic, but no webhook is present.`));
-      discordCh.send("I found a Hubs URL in the topic, but no webhook exists in this channel yet, so it won't work.");
-    }
-    return null;
-  }
-  return hook;
+  return hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first(); // todo: should we do this .first?
 }
 
 // Either sets the topic to something new, or complains that we didn't have the permissions.
@@ -81,7 +73,8 @@ async function trySetTopic(discordCh, newTopic) {
   });
 }
 
-function establishBindings(reticulumCh, discordCh, webhook, state) {
+function subscribeToEvents(binding) {
+  const { reticulumCh, discordCh, hubState: state } = binding;
   console.info(ts(`Hubs room ${state.id} bound to Discord channel ${discordCh.id}; joining.`));
   const presenceRollups = new PresenceRollups();
   const mediaBroadcasts = {}; // { url: timestamp }
@@ -137,6 +130,13 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
     discordCh.send(`${whom} renamed the hub at ${state.url} to ${state.name}.`);
   });
   reticulumCh.on("message", (id, whom, type, body) => {
+    const webhook = binding.webhook; // note that this may change over the lifetime of the binding
+    if (webhook == null) {
+      if (VERBOSE) {
+        console.debug(`Ignoring message of type ${type} in channel ${discordCh.id} because no webhook is associated.`);
+      }
+      return;
+    }
     if (VERBOSE) {
       const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${state.id} to channel ${discordCh.id}: %j`);
       console.debug(msg, body);
@@ -190,11 +190,9 @@ async function start() {
         try {
           const { hub, subscription } = await reticulumClient.subscribeToHub(hubId, chan.name);
           const webhook = await getHubsWebhook(chan);
-          if (webhook) {
-            const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-            bindings.associate(subscription, chan, webhook, state, hubUrl.host);
-            establishBindings(subscription, chan, webhook, state);
-          }
+          const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
+          const binding = bindings.associate(subscription, chan, webhook, state, hubUrl.host);
+          subscribeToEvents(binding);
         } catch (e) {
           console.error(ts(`Failed to subscribe to ${hubUrl}:`), e);
         }
@@ -202,8 +200,24 @@ async function start() {
     });
   }
 
+  discordClient.on('webhookUpdate', (discordCh) => {
+    q.enqueue(async () => {
+      const hubId = bindings.hubsByChannel[discordCh.id];
+      const binding = bindings.bindingsByHub[hubId];
+      const oldWebhook = binding.webhook;
+      const newWebhook = await getHubsWebhook(discordCh);
+      if (oldWebhook != null && newWebhook == null) {
+        await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable bridging.");
+      } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
+        await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
+      }
+      binding.webhook = newWebhook;
+    });
+  });
+
   discordClient.on('channelUpdate', (oldChannel, newChannel) => {
     q.enqueue(async () => {
+      console.log("channelupdate");
       const prevHubId = bindings.hubsByChannel[oldChannel.id];
       const { hubUrl: currHubUrl, hubId: currHubId } = topicManager.matchHub(newChannel.topic) || {};
       if (prevHubId !== currHubId) {
@@ -218,11 +232,13 @@ async function start() {
           if (currHubId) {
             const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId, newChannel.name);
             const webhook = await getHubsWebhook(newChannel);
-            if (webhook) {
-              const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-              bindings.associate(subscription, newChannel, webhook, state, currHubUrl.host);
-              establishBindings(subscription, newChannel, webhook, state);
+            const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
+            const binding = bindings.associate(subscription, newChannel, webhook, state, currHubUrl.host);
+            subscribeToEvents(binding);
+            if (webhook != null) {
               await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
+            } else {
+              await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}. No webhook is present, so bridging won't work. Add a channel webhook to enable bridging.`);
             }
           }
         } catch (e) {
@@ -259,7 +275,7 @@ async function start() {
           if (msg.author.id === discordClient.user.id) {
             return;
           }
-          if (msg.webhookID === binding.webhook.id) {
+          if (binding.webhook != null && msg.webhookID === binding.webhook.id) {
             return;
           }
           if (VERBOSE) {
