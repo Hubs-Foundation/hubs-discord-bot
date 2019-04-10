@@ -5,7 +5,7 @@ dotenv.config({ path: ".env.defaults" });
 
 const VERBOSE = (process.env.VERBOSE === "true");
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
-const MEDIA_DEDUPLICATE_MS = 60 * 1000;
+const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 
 const discord = require('discord.js');
 const { ChannelBindings, HubState } = require("./bindings.js");
@@ -153,7 +153,7 @@ function establishBindings(reticulumCh, discordCh, webhook, state) {
         const elapsedMs = timestamp - lastBroadcast;
         if (elapsedMs <= MEDIA_DEDUPLICATE_MS) {
           if (VERBOSE) {
-            console.debug(ts(`Declining to rebroadcast ${body.src} so soon after previous broadcast.`));
+            console.debug(ts(`Declining to rebroadcast ${body.src} only ${(elapsedMs / 1000).toFixed(0)} second(s) after previous broadcast.`));
           }
           return;
         }
