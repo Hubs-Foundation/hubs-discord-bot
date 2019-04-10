@@ -11,7 +11,7 @@ test('Hubs URLs are correctly added to and removed from topics', function(t) {
   t.end();
 });
 
-test('Hubs URLs are detected in channel topics', function(t) {
+test('Hubs URLs are correctly identified', function(t) {
   var tm = new TopicManager(["foo", "bar.mozilla.com", "hubs.local:8080", "localhost"]);
   // path form: hub IDs must be exactly 7 characters and followed by an optional slug
   t.equal(tm.matchHub("https://foo/0123456/").hubId, "0123456");
@@ -28,5 +28,16 @@ test('Hubs URLs are detected in channel topics', function(t) {
   t.equal(tm.matchHub("https://hubs.local:443/hub.html"), null);
   t.equal(tm.matchHub("http://localhost/hub.html?hub_id=foobar1").hubId, "foobar1");
   t.equal(tm.matchHub("https://localhots/hub.html?hub_id=foobar1"), null);
+  t.end();
+});
+
+test('Scene URLs are correctly identified', function(t) {
+  var tm = new TopicManager(["hubs.mozilla.com", "hubs.local:8080"]);
+  // scene IDs must be exactly 7 characters and followed by an optional slug
+  t.equal(tm.matchScene("http://foo/scenes/blah-blah-blah"), null);
+  t.equal(tm.matchScene("https://hubs.mozilla.com/scenes/d0gf00d/ponies").sceneId, "d0gf00d");
+  t.equal(tm.matchScene("https://hubs.mozilla.com/d0gf00d/ponies"), null);
+  t.equal(tm.matchScene("https://hubs.local:8080/scenes/wwwwwww").sceneId, "wwwwwww");
+  t.equal(tm.matchScene("https://hubs.local:8080/scenes/wwwwwwww"), null);
   t.end();
 });
