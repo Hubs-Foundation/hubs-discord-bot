@@ -217,7 +217,6 @@ async function start() {
 
   discordClient.on('channelUpdate', (oldChannel, newChannel) => {
     q.enqueue(async () => {
-      console.log("channelupdate");
       const prevHubId = bindings.hubsByChannel[oldChannel.id];
       const { hubUrl: currHubUrl, hubId: currHubId } = topicManager.matchHub(newChannel.topic) || {};
       if (prevHubId !== currHubId) {
