@@ -161,13 +161,13 @@ class ReticulumClient {
         res.on("end", () => {
           let result;
           try {
-            result = JSON.parse(json)
+            result = JSON.parse(json);
           } catch(e) {
             // ignore json parsing errors
           }
-          resolve(result)
+          resolve(result);
         });
-      })
+      });
       req.on("error", reject);
       req.end(payloadJson);
     });
