@@ -3,6 +3,7 @@ var { PresenceRollups } = require('../src/presence-rollups.js');
 
 test('PresenceRollups rolls up arrivals and departures correctly', function(t) {
   var q = new PresenceRollups({
+    renameLeewayMs: 1,
     arriveRollupLeewayMs: 1,
     departRollupLeewayMs: 2,
     departRejoinPatienceMs: 10
@@ -20,6 +21,8 @@ test('PresenceRollups rolls up arrivals and departures correctly', function(t) {
   t.deepEqual(latest(), { e: 'update', kind: 'arrive', users: [{ id: 0, name: 'Alice' }, { id: 1, name: 'Bob'}], timestamp: 1});
   q.rename(1, "Bob", "Bobert", 2);
   t.deepEqual(latest(), { e: 'update', kind: 'arrive', users: [{ id: 0, name: 'Alice' }, { id: 1, name: 'Bobert'}], timestamp: 2});
+  q.rename(1, "Bobert", "Bobarino", 4);
+  t.deepEqual(latest(), { e: 'new', kind: 'rename', users: [{ id: 1, name: 'Bobarino', prevName: 'Bobert' }], timestamp: 4});
   q.arrive(2, "Charlie", 4);
   t.deepEqual(latest(), { e: 'new', kind: 'arrive', users: [{ id: 2, name: 'Charlie' }], timestamp: 4});
   q.finalizeDeparture(1, "Bob", 4);
@@ -40,6 +43,7 @@ test('PresenceRollups rolls up arrivals and departures correctly', function(t) {
 
 test('PresenceRollups works even if the bot starts with people already present', function(t) {
   var q = new PresenceRollups({
+    renameLeewayMs: 1,
     arriveRollupLeewayMs: 1,
     departRollupLeewayMs: 1,
     departRejoinPatienceMs: 1
