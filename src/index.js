@@ -261,20 +261,35 @@ async function start() {
 
   discordClient.on('message', msg => {
     q.enqueue(async () => {
+      // don't process our own messages
+      if (msg.author.id === discordClient.user.id) {
+        return;
+      }
+
+      console.info(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
       const args = msg.content.split(' ');
       const discordCh = msg.channel;
-      const guildId = discordCh.guild.id;
       const channelId = discordCh.id;
+
+      if (msg.content === "!hubs") {
+        await discordCh.send(HELP_TEXT);
+        return;
+      }
+
+      if (!discordCh.guild) { // e.g. you DMed the bot
+        await discordCh.send(
+          "Sorry, I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
+          "If you're curious about what I do, try `!hubs` or check out https://github.com/MozillaReality/hubs-discord-bot."
+        );
+        return;
+      }
 
       // echo normal chat messages into the hub, if we're bridged to a hub
       if (args[0] !== "!hubs") {
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
           const binding = bindings.bindingsByHub[hubId];
-          // don't echo our own messages
-          if (msg.author.id === discordClient.user.id) {
-            return;
-          }
+          // don't echo our messages
           if (binding.webhook != null && msg.webhookID === binding.webhook.id) {
             return;
           }
@@ -285,8 +300,6 @@ async function start() {
         }
         return;
       }
-
-      console.info(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
 
       switch (args[1]) {
 
@@ -319,6 +332,7 @@ async function start() {
         }
 
         if (args.length == 2) { // !hubs create
+          const guildId = discordCh.guild.id;
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(discordCh.name);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
@@ -328,6 +342,7 @@ async function start() {
         const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
         if (sceneUrl) { // !hubs create [scene URL] [name]
           const name = sceneSlug || discordCh.name;
+          const guildId = discordCh.guild.id;
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(name, sceneId);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
