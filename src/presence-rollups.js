@@ -29,6 +29,8 @@ class PresenceRollups extends EventEmitter {
     this.pendingDepartures = {}; // { name: [timeout] }
 
     this.options = Object.assign({
+      // The duration for which we will edit someone's last activity with a renamed name.
+      renameLeewayMs: 60 * 1000,
       // The duration for which we wait to roll up multiple people's arrivals.
       arriveRollupLeewayMs: 60 * 1000,
       // The duration for which we wait to roll up multiple people's departures.
@@ -71,7 +73,8 @@ class PresenceRollups extends EventEmitter {
     const prev = this.latest();
     if (prev != null && prev.kind === "rename" || prev.kind === "arrive") {
       const user = prev.users.find(u => u.id === id);
-      if (user != null) {
+      const elapsed = timestamp - prev.timestamp;
+      if (user != null && elapsed <= this.options.renameLeewayMs) {
         // update the last arrival or rename to have the new name
         user.name = name;
         prev.timestamp = timestamp;
