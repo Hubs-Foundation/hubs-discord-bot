@@ -247,7 +247,8 @@ async function start() {
     });
   });
 
-  const HELP_TEXT = "Bot command usage:\n\n" +
+  const HELP_TEXT = "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (https://hubs.mozilla.com/). " +
+        "You can use the following commands:\n\n" +
         "🦆 `!hubs create` - Creates a default Hubs room and puts its URL into the channel topic. " +
         "A room URL in the channel topic will be bridged between Hubs and Discord.\n" +
         "🦆 `!hubs create [scene URL] [name]` - Creates a new room with the given scene and name, and puts its URL into the channel topic.\n" +
@@ -277,7 +278,8 @@ async function start() {
 
       if (!discordCh.guild) { // e.g. you DMed the bot
         await discordCh.send(
-          "Sorry, I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
+          "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (https://hubs.mozilla.com/).\n\n" +
+          "I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
           "If you're curious about what I do, try `!hubs` or check out https://github.com/MozillaReality/hubs-discord-bot."
         );
         return;
