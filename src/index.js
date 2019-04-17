@@ -204,14 +204,16 @@ async function start() {
     q.enqueue(async () => {
       const hubId = bindings.hubsByChannel[discordCh.id];
       const binding = bindings.bindingsByHub[hubId];
-      const oldWebhook = binding.webhook;
-      const newWebhook = await getHubsWebhook(discordCh);
-      if (oldWebhook != null && newWebhook == null) {
-        await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable bridging.");
-      } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
-        await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
+      if (binding != null) {
+        const oldWebhook = binding.webhook;
+        const newWebhook = await getHubsWebhook(discordCh);
+        if (oldWebhook != null && newWebhook == null) {
+          await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable bridging.");
+        } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
+          await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
+        }
+        binding.webhook = newWebhook;
       }
-      binding.webhook = newWebhook;
     });
   });
 
