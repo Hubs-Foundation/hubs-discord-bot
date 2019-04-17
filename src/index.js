@@ -268,7 +268,10 @@ async function start() {
         return;
       }
 
-      console.info(ts(`Processing bot command from ${msg.author.id}: "${msg.content}"`));
+      if (VERBOSE) {
+        console.debug(ts(`Processing message from ${msg.author.id}: "${msg.content}"`));
+      }
+
       const args = msg.content.split(' ');
       const discordCh = msg.channel;
       const channelId = discordCh.id;
