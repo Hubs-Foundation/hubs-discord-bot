@@ -6,6 +6,7 @@ dotenv.config({ path: ".env.defaults" });
 const VERBOSE = (process.env.VERBOSE === "true");
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
+const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
 
 const discord = require('discord.js');
 const { ChannelBindings, HubState } = require("./bindings.js");
@@ -295,14 +296,27 @@ async function start() {
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
           const binding = bindings.bindingsByHub[hubId];
-          // don't echo our messages
-          if (binding.webhook != null && msg.webhookID === binding.webhook.id) {
+          if (binding.webhook != null && msg.webhookID === binding.webhook.id) { // don't echo our own messages
             return;
           }
-          if (VERBOSE) {
-            console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
+          if (msg.cleanContent) { // could be blank if the message is e.g. only an attachment
+            if (VERBOSE) {
+              console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
+            }
+            binding.reticulumCh.sendMessage(msg.author.username, "chat", msg.cleanContent);
           }
-          binding.reticulumCh.sendMessage(msg.author.username, msg.cleanContent);
+
+          // todo: we don't currently have any principled way of representing non-image attachments in hubs --
+          // sometimes we could spawn them (e.g. a PDF or a model) but where would we place them, and who would own them?
+          // we could send a chat message that said something like "mqp linked a file" with a spawn button,
+          // but i fear the spawn button is too obscure for this to be clear. work for later date
+          const imageAttachments = Array.from(msg.attachments.values()).filter(a => IMAGE_URL_RE.test(a.url));
+          for (const attachment of imageAttachments) {
+            if (VERBOSE) {
+              console.debug(ts(`Relaying attachment via channel ${discordCh.id} to hub ${hubId}.`));
+            }
+            binding.reticulumCh.sendMessage(msg.author.username, "image", { "src": attachment.url });
+          }
         }
         return;
       }
