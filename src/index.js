@@ -161,6 +161,9 @@ function subscribeToEvents(binding) {
       }
       mediaBroadcasts[body.src] = timestamp;
       webhook.send(body.src, { username: whom });
+    } else if (type === "photo") {
+      // we like to just broadcast all photos, without waiting for anyone to pin them
+      webhook.send(body.src, { username: whom });
     }
   });
 }
