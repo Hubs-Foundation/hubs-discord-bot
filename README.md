@@ -21,8 +21,8 @@ The bot has two primary functions, both related to linking Discord text channels
 
 When you create a Hubs room using the `!hubs create` bot command, you establish a permanent association between the Hubs room and the Discord channel where you typed the command. This association will cause the Hubs room to use information from your Discord server to authenticate participants. Specifically:
 
-- People can only join the Hubs room via Discord OAuth.
-- When they join, their permissions are based on their Discord roles. (People with Discord "manage channels" permission will be able to change the name and scene in the room, and people with Discord "kick users" permission will be able to kick people.)
+- People can only join the Hubs room via Discord OAuth, and only if they are a member of the channel that the Hubs room is associated with.
+- When they join, their permissions are based on their Discord roles. (People with Discord "manage channels" permission will be able to change the name and scene in the room, and people with Discord "kick users" permission will be able to kick and mute people in the Hubs room.)
 - Their display name in the Hubs room will reflect their Discord display name.
 
 This only happens with rooms that you create using `!hubs create` -- simply bridging a room by putting it in the topic won't cause it to become permission-linked. This linkage will persist for the lifetime of the Hubs room -- if you don't like it, make a new Hubs room.
@@ -42,7 +42,7 @@ If you remove the Hubs room from the topic, bridging will stop.
 
 ### Great. I want to run this on my Discord server.
 
-The bot is currently in a sort of closed beta, so you'll need to request an invite by emailing [hubs@mozilla.com][bot-invite].
+The bot is currently in a closed beta, so you'll need to request an invite by emailing [hubs@mozilla.com][bot-invite].
 
 Once the bot is running on your server:
 
@@ -51,7 +51,7 @@ Once the bot is running on your server:
 2. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
    send Hubs status updates.
 
-3. Try out the bot! Type `!hubs` in a channel the bot is in to see all of the ways you can control the bot. Put your favorite Hubs room into a channel topic to start bridging.
+3. Try out the bot! Type `!hubs` in a channel the bot is in to see all of the ways you can control the bot. Put your favorite Hubs room into a channel topic to start bridging, or use the `!hubs create` command to create a new room.
 
 ### Permissions
 
