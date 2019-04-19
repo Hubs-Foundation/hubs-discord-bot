@@ -123,8 +123,8 @@ class ReticulumChannel extends EventEmitter {
   }
 
   // Sends a chat message that Hubs users will see in the chat box.
-  sendMessage(name, body) {
-    this.channel.push("message", { type: "chat", from: name, body }); // no ack is expected
+  sendMessage(name, kind, body) {
+    this.channel.push("message", { type: kind, from: name, body }); // no ack is expected
   }
 
 }
