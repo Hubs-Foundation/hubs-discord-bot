@@ -2,7 +2,6 @@ const EventEmitter = require('events');
 const WebSocket = require('websocket').w3cwebsocket;
 const https = require('https');
 const phoenix = require("phoenix");
-const uuid = require("uuid");
 const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
@@ -99,7 +98,11 @@ class ReticulumChannel extends EventEmitter {
       this.emit('message', session_id, sender, type, body);
     });
 
-    return promisifyPush(this.channel.join());
+    const data = await promisifyPush(this.channel.join());
+    const socketParams = this.channel.socket.params();
+    socketParams.session_id = data.session_id;
+    socketParams.session_token = data.session_token;
+    return data;
   }
 
   async close() {
@@ -133,7 +136,6 @@ class ReticulumClient {
     this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
       transport: WebSocket,
-      params: { session_id: uuid() }
     });
   }
 
