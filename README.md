@@ -1,35 +1,57 @@
 # hubs-discord-bot (Beta)
 
+**Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
+
 A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
 [Request an invitation link to add the Discord Bot to a server you own][bot-invite] by emailing hubs@mozilla.com.
 
-* [Usage](#usage)
-    * [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
-    * [Permissions](#permissions)
+* [What it does](#what-it-does)
+  * [Room/channel permissions linkage](#room-channel-permissions-linkage)
+  * [Room/channel bridging](#room-channel-bridging)
+* [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
+* [Permissions](#permissions)
 * [Hacking on it](#hacking-on-it)
 
-## Usage
+## What it does
 
-The primary function of the bot is to establish a 1:1 linkage between a Discord text channel and a Hubs room. Once rooms are linked, then the bot will do the following:
+The bot has two primary functions, both related to linking Discord text channels and Hubs rooms.
 
-- Bridge text chat from the Discord channel into the Hubs room.
-- Bridge text chat from the Hubs room into the Discord channel.
-- Post links in Discord to media (images, videos, models) which are pinned in the Hubs room.
-- Post in the Discord channel when someone joins or leaves the Hubs room, or if administrative stuff happens in the Hubs room.
+### Room/channel permissions linkage
 
-When a Hubs room is associated with a Discord channel, users will be assigned abilities in the Hubs room based on their Discord roles. For example, Discord owners and moderators will be able to change settings on a Hubs room and be able to moderate users in the room.
+When you create a Hubs room using the `!hubs create` bot command, you establish a permanent association between the Hubs room and the Discord channel where you typed the command. This association will cause the Hubs room to use information from your Discord server to authenticate participants. Specifically:
+
+- People can only join the Hubs room via Discord OAuth, and only if they are a member of the channel that the Hubs room is associated with.
+- When they join, their permissions are based on their Discord roles. (People with Discord "manage channels" permission will be able to change the name and scene in the room, and people with Discord "kick users" permission will be able to kick and mute people in the Hubs room.)
+- Their display name in the Hubs room will reflect their Discord display name.
+
+This only happens with rooms that you create using `!hubs create` -- simply bridging a room by putting it in the topic won't cause it to become permission-linked. This linkage will persist for the lifetime of the Hubs room -- if you don't like it, make a new Hubs room.
+
+### Room/channel bridging
+
+Independently of being permission-linked, the bot will detect any Hubs rooms in channel topics in channels that the bot can read and join those rooms, establishing a bridge between the room and the Discord channel. Specifically:
+
+- A notification will appear in the Discord channel when someone joins or leaves the Hubs room, or if administrative stuff happens in the Hubs room.
+- Text chat and images will be bridged from the Discord channel into the Hubs room.
+- Text chat and photos will be bridged from the Hubs room into the Discord channel.
+- Links to media (images, videos, models) which are *pinned* in the Hubs room will be bridged to Discord.
+
+Note that you need to set up a webhook for the bot to use in the Discord channel, or it won't be able to post chat from Hubs.
+
+If you remove the Hubs room from the topic, bridging will stop.
 
 ### Great. I want to run this on my Discord server.
 
-1. Request an [invite link][bot-invite] to invite the bot to your guild by emailing hubs@mozilla.com.
+The bot is currently in a closed beta, so you'll need to request an invite by emailing [hubs@mozilla.com][bot-invite].
 
-2. Give the bot [appropriate permissions](#permissions) on the channels you want it to run in.
+Once the bot is running on your server:
 
-3. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
+1. Give the bot [appropriate permissions](#permissions) on the channels you want it to run in.
+
+2. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
    send Hubs status updates.
 
-4. Try out the bot! Type `!hubs` in a channel the bot is in to see some things you can do. The bot will bridge a Discord channel and a room if it sees the room URL in the topic of the channel.
+3. Try out the bot! Type `!hubs` in a channel the bot is in to see all of the ways you can control the bot. Put your favorite Hubs room into a channel topic to start bridging, or use the `!hubs create` command to create a new room.
 
 ### Permissions
 
@@ -42,8 +64,10 @@ The bot requires several permissions in order to work:
 You can and should assign these on a channel-by-channel basis to the bot role after adding the bot to your guild.
 
 ## Hacking on it
-If you just add the bot to your Discord guild, it will run on the Hubs servers and you don't need to do anything.
-But if you want to hack it, run it yourself, or point it at your own deployment of Hubs, read on. Please note that there may be some differences between a self-hosted version of the Hubs Discord bot and the one provided by Mozilla.
+
+If you want to run the bot yourself or contribute to it right now, your best bet is to join our Discord and ask for help, because there are some parts of the server code that you will need to run and hack up. In the future this process should be easier.
+
+To simply run the bot process:
 
 1. Clone this repository.
 
@@ -53,7 +77,7 @@ But if you want to hack it, run it yourself, or point it at your own deployment 
 
 4. [Create a Discord bot on the Discord website.][discord-docs]
 
-5. Create an `.env` file with your bot's API token. If you want it to work with rooms on hubs.mozilla.com, also include `RETICULUM_HOST=hubs.mozilla.com` and `HUBS_HOSTS=hubs.mozilla.com`. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
+5. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
 
 6. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
 
