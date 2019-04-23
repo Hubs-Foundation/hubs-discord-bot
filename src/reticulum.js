@@ -27,6 +27,16 @@ class ReticulumChannel extends EventEmitter {
     super();
     this.channel = channel;
     this.presence = {};
+    this.previousSessionId = null;
+
+    this.channel.socket.onClose(() => {
+      const socketParams = this.channel.socket.params();
+      if (socketParams.session_id) {
+        this.previousSessionId = socketParams.session_id;
+      }
+      socketParams.session_id = null;
+      socketParams.session_token = null;
+    });
   }
 
   async connect() {
@@ -49,7 +59,8 @@ class ReticulumChannel extends EventEmitter {
     };
 
     const onLeave = (id, curr, p) => {
-      if (this.channel.socket.params().session_id === id) {
+      // Apparently we recevie a leave event for our previous session when we reconnect, so filter those out as well.
+      if (this.channel.socket.params().session_id === id || this.previousSessionId === id) {
         return;
       }
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
@@ -98,10 +109,21 @@ class ReticulumChannel extends EventEmitter {
       this.emit('message', session_id, sender, type, body);
     });
 
-    const data = await promisifyPush(this.channel.join());
-    const socketParams = this.channel.socket.params();
-    socketParams.session_id = data.session_id;
-    socketParams.session_token = data.session_token;
+    const data = await new Promise((resolve, reject) => {
+      this.channel.join()
+        .receive("error", reject)
+        .receive("timeout", reject)
+        .receive("ok", data => {
+          // This "ok" handler will be called on reconnects as well, so we want to reset our session id when that 
+          // happens.
+          const socketParams = this.channel.socket.params();
+          socketParams.session_id = data.session_id;
+          socketParams.session_token = data.session_token;
+
+          resolve(data);
+        });
+    });
+
     return data;
   }
 
