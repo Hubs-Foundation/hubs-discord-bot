@@ -28,15 +28,6 @@ class ReticulumChannel extends EventEmitter {
     this.channel = channel;
     this.presence = {};
     this.previousSessionId = null;
-
-    this.channel.socket.onClose(() => {
-      const socketParams = this.channel.socket.params();
-      if (socketParams.session_id) {
-        this.previousSessionId = socketParams.session_id;
-      }
-      socketParams.session_id = null;
-      socketParams.session_token = null;
-    });
   }
 
   async connect() {
@@ -114,9 +105,16 @@ class ReticulumChannel extends EventEmitter {
         .receive("error", reject)
         .receive("timeout", reject)
         .receive("ok", data => {
-          // This "ok" handler will be called on reconnects as well, so we want to reset our session id when that 
-          // happens.
+          // This "ok" handler will be called on reconnects as well.
+
           const socketParams = this.channel.socket.params();
+
+          // If reticulum gives us a new session id, our previous session token must have expired. We store our
+          // old session id in order to ignore any queued "leave" events from that session.
+          if (data.session_id !== socketParams.session_id) {
+            this.previousSessionId = socketParams.session_id;
+          }
+
           socketParams.session_id = data.session_id;
           socketParams.session_token = data.session_token;
 
