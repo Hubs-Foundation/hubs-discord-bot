@@ -29,6 +29,9 @@ class PresenceRollups extends EventEmitter {
     this.pendingDepartures = {}; // { name: [timeout] }
 
     this.options = Object.assign({
+      // The duration for which, if a room has no activity, the next activity is considered "fresh".
+      // (We broadcast general room information to Discord on fresh activity.)
+      freshnessCooldownMs: 60 * 60 * 1000,
       // The duration for which we will edit someone's last activity with a renamed name.
       renameLeewayMs: 60 * 1000,
       // The duration for which we wait to roll up multiple people's arrivals.
@@ -64,7 +67,8 @@ class PresenceRollups extends EventEmitter {
       }
     }
     // create a new arrival notification
-    const curr = { kind: "arrive", users: [{ id, name }], timestamp };
+    const fresh = prev != null && (timestamp - prev.timestamp >= this.options.freshnessCooldownMs);
+    const curr = { kind: "arrive", users: [{ id, name }], timestamp, fresh };
     this.entries.push(curr);
     this.emit("new", curr);
   }
@@ -83,7 +87,8 @@ class PresenceRollups extends EventEmitter {
       }
     }
     // create a new rename notification
-    const curr = { kind: "rename", users: [{ id, name, prevName }], timestamp };
+    const fresh = prev != null && (timestamp - prev.timestamp >= this.options.freshnessCooldownMs);
+    const curr = { kind: "rename", users: [{ id, name, prevName }], timestamp, fresh };
     this.entries.push(curr);
     this.emit("new", curr);
   }
@@ -109,7 +114,8 @@ class PresenceRollups extends EventEmitter {
       }
     }
     // create a new departure notification
-    const curr = { kind: "depart", users: [{ id, name }], timestamp };
+    const fresh = prev != null && (timestamp - prev.timestamp >= this.options.freshnessCooldownMs);
+    const curr = { kind: "depart", users: [{ id, name }], timestamp, fresh };
     this.entries.push(curr);
     this.emit("new", curr);
   }
