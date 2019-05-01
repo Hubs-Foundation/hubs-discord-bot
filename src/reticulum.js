@@ -6,6 +6,8 @@ const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
 
+// All of the session IDs ever assigned to the bot.
+const BOT_SESSION_IDS = new Set();
 
 // The URL for the scene used if users create a new room but don't specify a scene.
 const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json";
@@ -28,13 +30,12 @@ class ReticulumChannel extends EventEmitter {
     super();
     this.channel = channel;
     this.presence = new phoenix.Presence(channel);
-    this.previousSessionId = null;
   }
 
   async connect() {
 
     this.presence.onJoin((id, curr, p) => {
-      if (this.channel.socket.params().session_id === id) {
+      if (BOT_SESSION_IDS.has(id)) {
         return;
       }
       const mostRecent = p.metas[p.metas.length - 1];
@@ -51,8 +52,7 @@ class ReticulumChannel extends EventEmitter {
     });
 
     this.presence.onLeave((id, curr, p) => {
-      // Apparently we recevie a leave event for our previous session when we reconnect, so filter those out as well.
-      if (this.channel.socket.params().session_id === id || this.previousSessionId === id) {
+      if (BOT_SESSION_IDS.has(id)) {
         return;
       }
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
@@ -86,7 +86,7 @@ class ReticulumChannel extends EventEmitter {
 
     this.channel.on("message", ({ session_id, type, body, from }) => {
       // we sent this message ourselves just now, don't notify ourselves about it
-      if (this.channel.socket.params().session_id === session_id) {
+      if (BOT_SESSION_IDS.has(session_id)) {
         return;
       }
       const sender = from || this.getName(session_id);
@@ -97,19 +97,13 @@ class ReticulumChannel extends EventEmitter {
       this.channel.join()
         .receive("error", reject)
         .receive("timeout", reject)
-        .receive("ok", data => {
-          // This "ok" handler will be called on reconnects as well.
+        .receive("ok", data => { // this "ok" handler will be called on reconnects as well
 
-          const socketParams = this.channel.socket.params();
-
-          // If reticulum gives us a new session id, our previous session token must have expired. We store our
-          // old session id in order to ignore any queued "leave" events from that session.
-          if (data.session_id !== socketParams.session_id) {
-            this.previousSessionId = socketParams.session_id;
-          }
-
-          socketParams.session_id = data.session_id;
-          socketParams.session_token = data.session_token;
+          this.emit('connect', data.session_id);
+          // note that it's kind of inherently strange that session IDs are associated with our socket on the
+          // server, but we get them out only from channel join messages, causing this code to be in a weird
+          // place. roll with it now i guess
+          BOT_SESSION_IDS.add(data.session_id);
 
           resolve(data);
         });
@@ -146,6 +140,7 @@ class ReticulumChannel extends EventEmitter {
 class ReticulumClient {
 
   constructor(hostname) {
+    this.sessionIds = new Set(); // all of the session IDs that belong to ourselves
     this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
       transport: WebSocket,
@@ -217,7 +212,7 @@ class ReticulumClient {
   // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
   // where `subscription` is the Phoenix channel object and `hub` is the hub metadata from Reticulum.
   // The channel name is used to inform other users which Discord channel we're bridging to.
-  async subscribeToHub(hubId, channelName) {
+  channelForHub(hubId, channelName) {
     const payload = {
       context: { mobile: false, hmd: false, discord: channelName },
       profile: {
@@ -226,10 +221,7 @@ class ReticulumClient {
       },
       bot_access_key: process.env.RETICULUM_BOT_ACCESS_KEY
     };
-    const ch = this.socket.channel(`hub:${hubId}`, payload);
-    const subscription = new ReticulumChannel(ch);
-    const hub = (await subscription.connect()).hubs[0];
-    return { hub, subscription };
+    return new ReticulumChannel(this.socket.channel(`hub:${hubId}`, payload));
   }
 
 }
