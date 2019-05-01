@@ -6,6 +6,7 @@ const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
 
+
 // The URL for the scene used if users create a new room but don't specify a scene.
 const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json";
 
@@ -26,13 +27,13 @@ class ReticulumChannel extends EventEmitter {
   constructor(channel) {
     super();
     this.channel = channel;
-    this.presence = {};
+    this.presence = new phoenix.Presence(channel);
     this.previousSessionId = null;
   }
 
   async connect() {
 
-    const onJoin = (id, curr, p) => {
+    this.presence.onJoin((id, curr, p) => {
       if (this.channel.socket.params().session_id === id) {
         return;
       }
@@ -47,9 +48,9 @@ class ReticulumChannel extends EventEmitter {
       }
       // this guy was not previously present, notify for a join
       this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
-    };
+    });
 
-    const onLeave = (id, curr, p) => {
+    this.presence.onLeave((id, curr, p) => {
       // Apparently we recevie a leave event for our previous session when we reconnect, so filter those out as well.
       if (this.channel.socket.params().session_id === id || this.previousSessionId === id) {
         return;
@@ -59,14 +60,6 @@ class ReticulumChannel extends EventEmitter {
       }
       const mostRecent = p.metas[p.metas.length - 1];
       this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);
-    };
-
-    this.channel.on("presence_state", state => {
-      this.presence = phoenix.Presence.syncState(this.presence, state, onJoin, onLeave);
-    });
-
-    this.channel.on("presence_diff", diff => {
-      this.presence = phoenix.Presence.syncDiff(this.presence, diff, onJoin, onLeave);
     });
 
     this.channel.on("hub_refresh", ({ session_id, stale_fields, hubs }) => {
