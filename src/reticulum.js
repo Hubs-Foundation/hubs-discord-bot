@@ -123,7 +123,7 @@ class ReticulumChannel extends EventEmitter {
   }
 
   getName(sessionId) {
-    const userInfo = this.presence[sessionId];
+    const userInfo = this.presence.state[sessionId];
     if (userInfo) {
       const mostRecent = userInfo.metas[userInfo.metas.length - 1];
       return mostRecent.profile.displayName;
