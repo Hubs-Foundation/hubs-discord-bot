@@ -40,7 +40,7 @@ function formatRename(user) {
   return `**${user.prevName}** changed their name to **${user.name}**.`;
 }
 
-// Formats a message of the form "Alice, Bob, and Charlie verbed."
+// Formats a message of the form "Alice, Bob, and Charlie verb."
 function formatEvent(users, verb) {
   if (users.length === 1) {
     return `**${users[0].name}** ${verb}.`;
@@ -77,27 +77,34 @@ async function trySetTopic(discordCh, newTopic) {
 function subscribeToEvents(binding) {
   const { reticulumCh, discordCh, hubState: state } = binding;
   console.info(ts(`Hubs room ${state.id} bound to Discord channel ${discordCh.id}; joining.`));
+
   const presenceRollups = new PresenceRollups();
   const mediaBroadcasts = {}; // { url: timestamp }
+
   let lastPresenceMessage = null;
-  presenceRollups.on('new', ({ kind, users }) => {
+  presenceRollups.on('new', ({ kind, users, fresh }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = discordCh.send(formatEvent(users, "joined"));
+      const verb = fresh ? `joined <${state.url}>` : "joined";
+      lastPresenceMessage = discordCh.send(formatEvent(users, verb));
     } else if (kind === "depart") {
-      lastPresenceMessage = discordCh.send(formatEvent(users, "left"));
+      const verb = fresh ? `left <${state.url}>` : "left";
+      lastPresenceMessage = discordCh.send(formatEvent(users, verb));
     } else if (kind === "rename") {
       lastPresenceMessage = discordCh.send(formatRename(users[0]));
     }
   });
-  presenceRollups.on('update', ({ kind, users }) => {
+  presenceRollups.on('update', ({ kind, users, fresh }) => {
     if (kind === "arrive") {
-      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "joined")));
+      const verb = fresh ? `joined ${state.url}` : "joined";
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, verb)));
     } else if (kind === "depart") {
-      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, "left")));
+      const verb = fresh ? `left ${state.url}` : "left";
+      lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatEvent(users, verb)));
     } else if (kind === "rename") {
       lastPresenceMessage = lastPresenceMessage.then(msg => msg.edit(formatRename(users[0])));
     }
   });
+
   reticulumCh.on('join', (id, kind, whom) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying join for ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
@@ -130,6 +137,7 @@ function subscribeToEvents(binding) {
     }
     discordCh.send(`${whom} renamed the hub at ${state.url} to ${state.name}.`);
   });
+
   reticulumCh.on("message", (id, whom, type, body) => {
     const webhook = binding.webhook; // note that this may change over the lifetime of the binding
     if (webhook == null) {
