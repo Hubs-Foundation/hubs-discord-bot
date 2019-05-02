@@ -209,9 +209,10 @@ class ReticulumClient {
     return this._request("POST", "hub_bindings", payload);
   }
 
-  // Subscribes to the Phoenix channel for the given hub ID and resolves to a `{ hub, subscription }` pair,
-  // where `subscription` is the Phoenix channel object and `hub` is the hub metadata from Reticulum.
-  // The channel name is used to inform other users which Discord channel we're bridging to.
+  // Returns a channel object for the given Hub room's Phoenix channel.
+  //
+  // The channel name is used when joining the channel as part of our presence metadata to inform other users
+  // which Discord channel we're bridging to.
   channelForHub(hubId, channelName) {
     const payload = {
       context: { mobile: false, hmd: false, discord: channelName },

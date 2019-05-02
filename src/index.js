@@ -74,7 +74,7 @@ async function trySetTopic(discordCh, newTopic) {
   });
 }
 
-function subscribeToEvents(binding) {
+function establishBridge(binding) {
   const { reticulumCh, discordCh, hubState: state } = binding;
   console.info(ts(`Hubs room ${state.id} bridged to Discord channel ${discordCh.id}.`));
 
@@ -206,7 +206,7 @@ async function start() {
           const webhook = await getHubsWebhook(chan);
           const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
           const binding = bindings.associate(reticulumCh, chan, webhook, state, hubUrl.host);
-          subscribeToEvents(binding);
+          establishBridge(binding);
         } catch (e) {
           console.error(ts(`Failed to bridge to ${hubUrl}:`), e);
         }
@@ -251,7 +251,7 @@ async function start() {
             const webhook = await getHubsWebhook(newChannel);
             const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
             const binding = bindings.associate(reticulumCh, newChannel, webhook, state, currHubUrl.host);
-            subscribeToEvents(binding);
+            establishBridge(binding);
             if (webhook != null) {
               await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
             } else {
