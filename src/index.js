@@ -74,9 +74,9 @@ async function trySetTopic(discordCh, newTopic) {
   });
 }
 
-function subscribeToEvents(binding) {
+function establishBridge(binding) {
   const { reticulumCh, discordCh, hubState: state } = binding;
-  console.info(ts(`Hubs room ${state.id} bound to Discord channel ${discordCh.id}; joining.`));
+  console.info(ts(`Hubs room ${state.id} bridged to Discord channel ${discordCh.id}.`));
 
   const presenceRollups = new PresenceRollups();
   const mediaBroadcasts = {}; // { url: timestamp }
@@ -200,13 +200,15 @@ async function start() {
       const { hubUrl, hubId } = topicManager.matchHub(chan.topic) || {};
       if (hubUrl) {
         try {
-          const { hub, subscription } = await reticulumClient.subscribeToHub(hubId, chan.name);
+          const reticulumCh = reticulumClient.channelForHub(hubId, chan.name);
+          reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}`)); });
+          const hub = (await reticulumCh.connect()).hubs[0];
           const webhook = await getHubsWebhook(chan);
           const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-          const binding = bindings.associate(subscription, chan, webhook, state, hubUrl.host);
-          subscribeToEvents(binding);
+          const binding = bindings.associate(reticulumCh, chan, webhook, state, hubUrl.host);
+          establishBridge(binding);
         } catch (e) {
-          console.error(ts(`Failed to subscribe to ${hubUrl}:`), e);
+          console.error(ts(`Failed to bridge to ${hubUrl}:`), e);
         }
       }
     });
@@ -243,11 +245,13 @@ async function start() {
             await newChannel.send(`<#${newChannel.id}> no longer bridged to <${hubState.url}>.`);
           }
           if (currHubId) {
-            const { hub, subscription } = await reticulumClient.subscribeToHub(currHubId, newChannel.name);
+            const reticulumCh = reticulumClient.channelForHub(currHubId, newChannel.name);
+            reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${currHubId} with session ID ${id}`)); });
+            const hub = (await reticulumCh.connect()).hubs[0];
             const webhook = await getHubsWebhook(newChannel);
             const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-            const binding = bindings.associate(subscription, newChannel, webhook, state, currHubUrl.host);
-            subscribeToEvents(binding);
+            const binding = bindings.associate(reticulumCh, newChannel, webhook, state, currHubUrl.host);
+            establishBridge(binding);
             if (webhook != null) {
               await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
             } else {
@@ -255,7 +259,7 @@ async function start() {
             }
           }
         } catch (e) {
-          console.error(ts(`Failed to update channel bridging from ${prevHubId} to ${currHubId}:`), e);
+          console.error(ts(`Failed to update bridge from ${prevHubId} to ${currHubId}:`), e);
         }
       }
     });
