@@ -35,6 +35,15 @@ function ts(str) {
   return `[${new Date().toISOString()}] ${str}`;
 }
 
+// Formats a Discord channel reference, displaying the guild, channel name, and ID.
+function formatDiscordCh(discordCh) {
+  if (discordCh.guild && discordCh.name) {
+    return `${discordCh.guild.name}/#${discordCh.name} (${discordCh.id})`;
+  } else {
+    return discordCh.id;
+  }
+}
+
 // Formats a message indicating that the user formerly known as `prev` is now known as `curr`.
 function formatRename(user) {
   return `**${user.prevName}** changed their name to **${user.name}**.`;
@@ -76,7 +85,7 @@ async function trySetTopic(discordCh, newTopic) {
 
 function establishBridge(binding) {
   const { reticulumCh, discordCh, hubState: state } = binding;
-  console.info(ts(`Hubs room ${state.id} bridged to Discord channel ${discordCh.id}.`));
+  console.info(ts(`Hubs room ${state.id} bridged to ${formatDiscordCh(discordCh)}.`));
 
   const presenceRollups = new PresenceRollups();
   const mediaBroadcasts = {}; // { url: timestamp }
@@ -107,25 +116,25 @@ function establishBridge(binding) {
 
   reticulumCh.on('join', (id, kind, whom) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying join for ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying join for ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     presenceRollups.arrive(id, whom, Date.now());
   });
   reticulumCh.on('leave', (id, kind, whom) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying leave for ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying leave for ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     presenceRollups.depart(id, whom, Date.now());
   });
   reticulumCh.on('renameuser', (id, kind, prev, curr) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying rename from ${prev} to ${curr} (${id}) in ${state.id} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying rename from ${prev} to ${curr} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     presenceRollups.rename(id, prev, curr, Date.now());
   });
   reticulumCh.on('rescene', (id, whom, scene) => {
     if (VERBOSE) {
-      console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     discordCh.send(`${whom} changed the scene in ${state.url} to ${scene.name}.`);
   });
@@ -133,7 +142,7 @@ function establishBridge(binding) {
     state.name = name;
     state.slug = slug;
     if (VERBOSE) {
-      console.debug(ts(`Relaying name change by ${whom} (${id}) in ${state.id} to channel ${discordCh.id}.`));
+      console.debug(ts(`Relaying name change by ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     discordCh.send(`${whom} renamed the hub at ${state.url} to ${state.name}.`);
   });
@@ -142,12 +151,12 @@ function establishBridge(binding) {
     const webhook = binding.webhook; // note that this may change over the lifetime of the binding
     if (webhook == null) {
       if (VERBOSE) {
-        console.debug(`Ignoring message of type ${type} in channel ${discordCh.id} because no webhook is associated.`);
+        console.debug(`Ignoring message of type ${type} in ${formatDiscordCh(discordCh)} because no webhook is associated.`);
       }
       return;
     }
     if (VERBOSE) {
-      const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${state.id} to channel ${discordCh.id}: %j`);
+      const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${state.id} to ${formatDiscordCh(discordCh)}: %j`);
       console.debug(msg, body);
     }
     if (type === "chat") {
@@ -238,7 +247,7 @@ async function start() {
       if (prevHubId !== currHubId) {
         try {
           if (prevHubId) {
-            console.info(ts(`Hubs room ${prevHubId} no longer bridged to Discord channel ${oldChannel.id}; leaving.`));
+            console.info(ts(`Hubs room ${prevHubId} no longer bridged to ${formatDiscordCh(newChannel)}; leaving.`));
             const { hubState, reticulumCh } = bindings.bindingsByHub[prevHubId];
             await reticulumCh.close();
             bindings.dissociate(prevHubId);
@@ -316,7 +325,7 @@ async function start() {
           }
           if (msg.cleanContent) { // could be blank if the message is e.g. only an attachment
             if (VERBOSE) {
-              console.debug(ts(`Relaying chat message via channel ${discordCh.id} to hub ${hubId}.`));
+              console.debug(ts(`Relaying chat message via ${formatDiscordCh(discordCh)} to hub ${hubId}.`));
             }
             binding.reticulumCh.sendMessage(msg.author.username, "chat", msg.cleanContent);
           }
@@ -328,7 +337,7 @@ async function start() {
           const imageAttachments = Array.from(msg.attachments.values()).filter(a => IMAGE_URL_RE.test(a.url));
           for (const attachment of imageAttachments) {
             if (VERBOSE) {
-              console.debug(ts(`Relaying attachment via channel ${discordCh.id} to hub ${hubId}.`));
+              console.debug(ts(`Relaying attachment via ${formatDiscordCh(discordCh)} to hub ${hubId}.`));
             }
             binding.reticulumCh.sendMessage(msg.author.username, "image", { "src": attachment.url });
           }
