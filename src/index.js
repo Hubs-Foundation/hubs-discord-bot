@@ -37,7 +37,7 @@ function ts(str) {
 
 // Formats a Discord channel reference, displaying the guild, channel name, and ID.
 function formatDiscordCh(discordCh) {
-  if (discordCh.guild && discordCh.name) {
+  if (VERBOSE && discordCh.guild && discordCh.name) {
     return `${discordCh.guild.name}/#${discordCh.name} (${discordCh.id})`;
   } else {
     return discordCh.id;
