@@ -1,5 +1,5 @@
 const EventEmitter = require('events');
-const WebSocket = require('websocket').w3cwebsocket;
+const WebSocket = require('ws');
 const https = require('https');
 const phoenix = require("phoenix");
 const dotenv = require("dotenv");
