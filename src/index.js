@@ -201,7 +201,7 @@ async function start() {
       if (hubUrl) {
         try {
           const reticulumCh = reticulumClient.channelForHub(hubId, chan.name);
-          reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}`)); });
+          reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}.`)); });
           const hub = (await reticulumCh.connect()).hubs[0];
           const webhook = await getHubsWebhook(chan);
           const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
@@ -246,7 +246,7 @@ async function start() {
           }
           if (currHubId) {
             const reticulumCh = reticulumClient.channelForHub(currHubId, newChannel.name);
-            reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${currHubId} with session ID ${id}`)); });
+            reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${currHubId} with session ID ${id}.`)); });
             const hub = (await reticulumCh.connect()).hubs[0];
             const webhook = await getHubsWebhook(newChannel);
             const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
