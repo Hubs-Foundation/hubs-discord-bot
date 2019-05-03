@@ -9,6 +9,7 @@ const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
 
 const discord = require('discord.js');
+const schedule = require('node-schedule');
 const { ChannelBindings, HubState } = require("./bindings.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
@@ -217,6 +218,33 @@ function establishBridge(binding) {
   });
 }
 
+function scheduleSummaryPosting(bindings, queue) {
+  // only enable on hubs discord and test server until we're sure we like this
+  const whitelistedGuilds = new Set(["525537221764317195", "498741086295031808"]);
+  const rule = new schedule.RecurrenceRule(null, null, null, null, 23, 59, 59);
+  return schedule.scheduleJob(rule, function(date) {
+    var start = date;
+    var end = new Date(start.getTime());
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    queue.enqueue(async () => {
+      for (const [hubId, { discordCh, hubState }] of Object.entries(bindings.bindingsByHub)) {
+        if (discordCh.guild && whitelistedGuilds.has(discordCh.guild.id)) {
+          const summary = hubState.stats.summarize(start.getTime(), end.getTime());
+          const when = start.toLocaleDateString(process.env.LOCALE, {
+            timeZone: process.env.TIMEZONE,
+            weekday: "long",
+            year: "numeric",
+            month: "numeric",
+            day: "numeric"
+          });
+          await discordCh.send(formatStats(summary, hubState.url, when));
+        }
+      }
+    });
+  });
+}
+
 async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
@@ -233,6 +261,7 @@ async function start() {
   const bindings = new ChannelBindings();
   const topicManager = new TopicManager(HOSTNAMES);
   const q = new DiscordEventQueue();
+  const summaryJob = scheduleSummaryPosting(bindings, q);
 
   // one-time scan through all channels to look for existing bindings
   console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
