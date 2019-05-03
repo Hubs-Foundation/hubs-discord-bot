@@ -11,6 +11,8 @@ export HUBS_HOSTS="{{ cfg.general.hubs_hosts }}"
 export SHARD_ID="{{ cfg.general.shard_id }}"
 export SHARD_COUNT="{{ cfg.general.shard_count }}"
 export VERBOSE="{{ cfg.general.verbose }}"
+export LOCALE="{{ cfg.general.locale }}"
+export TIMEZONE="{{ cfg.general.timezone }}"
 
 cd {{pkg.svc_path}}
 

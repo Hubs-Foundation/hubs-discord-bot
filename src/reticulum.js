@@ -40,10 +40,13 @@ class ReticulumChannel extends EventEmitter {
       }
       const mostRecent = p.metas[p.metas.length - 1];
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
-        // this guy was already in the lobby or room, notify iff their name changed
+        // this guy was already in the lobby or room, notify iff their name changed or they moved between the lobby and room
         const previous = curr.metas[curr.metas.length - 1];
         if (previous.profile && mostRecent.profile && previous.profile.displayName !== mostRecent.profile.displayName) {
           this.emit('renameuser', id, mostRecent.presence, previous.profile.displayName, mostRecent.profile.displayName);
+        }
+        if (previous.presence === "lobby" && mostRecent.presence && previous.presence !== mostRecent.presence) {
+          this.emit('moved', id, mostRecent.presence, previous.presence);
         }
         return;
       }
@@ -55,10 +58,10 @@ class ReticulumChannel extends EventEmitter {
       if (BOT_SESSION_IDS.has(id)) {
         return;
       }
+      const mostRecent = p.metas[p.metas.length - 1];
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
         return; // this guy is still in the lobby or room, don't notify yet
       }
-      const mostRecent = p.metas[p.metas.length - 1];
       this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);
     });
 
@@ -125,8 +128,15 @@ class ReticulumChannel extends EventEmitter {
     return null;
   }
 
+  // Returns presence info for all users in the room, except ourselves.
   getUsers() {
-    return Object.values(this.presence).map(info => info.metas[0].profile.displayName);
+    const result = {};
+    for (const id in this.presence.state) {
+      if (!BOT_SESSION_IDS.has(id)) {
+        result[id] = this.presence.state[id];
+      }
+    }
+    return result;
   }
 
   // Sends a chat message that Hubs users will see in the chat box.
