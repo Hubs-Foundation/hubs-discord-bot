@@ -140,7 +140,6 @@ class ReticulumChannel extends EventEmitter {
 class ReticulumClient {
 
   constructor(hostname) {
-    this.sessionIds = new Set(); // all of the session IDs that belong to ourselves
     this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
       transport: WebSocket,
