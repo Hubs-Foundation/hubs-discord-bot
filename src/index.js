@@ -47,11 +47,13 @@ function formatDiscordCh(discordCh) {
 // Formats user activity statistics for a hub.
 function formatStats(stats, where, when) {
   const header = when != null ? `Hubs activity in <${where}> for ${when}:\n` : `Hubs activity in <${where}>:\n`;
+  const peakTimeDescription = stats.peakTime == null ? "N/A" :
+        new Date(stats.peakTime).toLocaleString(process.env.LOCALE, { timeZone: process.env.TIMEZONE, timeZoneName: "short" });
   return header +
     "```\n" +
     `Room joins: ${stats.arrivals}\n` +
     `Peak user count: ${stats.peakCcu}\n` +
-    `Peak time: ${stats.peakTime != null ? new Date(stats.peakTime).toISOString() : "N/A"}\n` +
+    `Peak time: ${peakTimeDescription}\n` +
     "```";
 }
 
