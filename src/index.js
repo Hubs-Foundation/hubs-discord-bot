@@ -249,7 +249,9 @@ function scheduleSummaryPosting(bindings, queue) {
       for (const [hubId, { discordCh, hubState }] of Object.entries(bindings.bindingsByHub)) {
         if (discordCh.guild && whitelistedGuilds.has(discordCh.guild.id)) {
           const summary = hubState.stats.summarize(start.getTime(), end.getTime());
-          await discordCh.send(formatStats(summary, hubState.url, when));
+          if (summary.peakCcu > 0) {
+            await discordCh.send(formatStats(summary, hubState.url, when));
+          }
         }
       }
     });
