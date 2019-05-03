@@ -10,7 +10,6 @@ const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
 
 const discord = require('discord.js');
 const { ChannelBindings, HubState } = require("./bindings.js");
-const { PresenceRollups } = require("./presence-rollups.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
 
@@ -42,6 +41,17 @@ function formatDiscordCh(discordCh) {
   } else {
     return discordCh.id;
   }
+}
+
+// Formats user activity statistics for a hub.
+function formatStats(stats, where, when) {
+  const header = when != null ? `Hubs activity in <${where}> for ${when}:\n` : `Hubs activity in <${where}>:\n`;
+  return header +
+    "```\n" +
+    `Room joins: ${stats.arrivals}\n` +
+    `Peak user count: ${stats.peakCcu}\n` +
+    `Peak time: ${stats.peakTime != null ? new Date(stats.peakTime).toISOString() : "N/A"}\n` +
+    "```";
 }
 
 // Formats a message indicating that the user formerly known as `prev` is now known as `curr`.
@@ -85,10 +95,19 @@ async function trySetTopic(discordCh, newTopic) {
 
 function establishBridge(binding) {
   const { reticulumCh, discordCh, hubState: state } = binding;
-  console.info(ts(`Hubs room ${state.id} bridged to ${formatDiscordCh(discordCh)}.`));
+  const { stats, presenceRollups, mediaBroadcasts } = state;
 
-  const presenceRollups = new PresenceRollups();
-  const mediaBroadcasts = {}; // { url: timestamp }
+  let nRoomOccupants = 0;
+  for (const p of Object.values(reticulumCh.getUsers())) {
+    if (p.metas.some(m => m.presence === "room")) {
+      nRoomOccupants++;
+    }
+  }
+  if (nRoomOccupants > 0) {
+    stats.arrive(Date.now(), nRoomOccupants);
+  }
+
+  console.info(ts(`Hubs room ${state.id} bridged to ${formatDiscordCh(discordCh)}.`));
 
   let lastPresenceMessage = null;
   presenceRollups.on('new', ({ kind, users, fresh }) => {
@@ -118,13 +137,26 @@ function establishBridge(binding) {
     if (VERBOSE) {
       console.debug(ts(`Relaying join for ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
-    presenceRollups.arrive(id, whom, Date.now());
+    const now = Date.now();
+    presenceRollups.arrive(id, whom, now);
+    if (kind === "room") {
+      stats.arrive(Date.now());
+    }
+  });
+  reticulumCh.on('moved', (id, kind, prev) => {
+    if (kind === "room") {
+      stats.arrive(Date.now());
+    }
   });
   reticulumCh.on('leave', (id, kind, whom) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying leave for ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
-    presenceRollups.depart(id, whom, Date.now());
+    const now = Date.now();
+    presenceRollups.depart(id, whom, now);
+    if (kind === "room") {
+      stats.depart(now);
+    }
   });
   reticulumCh.on('renameuser', (id, kind, prev, curr) => {
     if (VERBOSE) {
@@ -413,10 +445,21 @@ async function start() {
         // "!hubs users" == list users
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
-          const binding = bindings.bindingsByHub[hubId];
-          const users = binding.reticulumCh.getUsers();
-          const description = users.join(", ");
-          await discordCh.send(`Users currently in <${binding.hubState.url}>: **${description}**`);
+          const { hubState, reticulumCh } = bindings.bindingsByHub[hubId];
+          const names = Object.values(reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName).join(", ");
+          await discordCh.send(`Users currently in <${hubState.url}>: **${names}**`);
+        } else {
+          await discordCh.send("No Hubs room is currently bridged to this channel.");
+        }
+        return;
+      }
+
+      case "stats": {
+        // "!hubs stats" == stats for the current hub
+        if (discordCh.id in bindings.hubsByChannel) {
+          const hubId = bindings.hubsByChannel[discordCh.id];
+          const { hubState } = bindings.bindingsByHub[hubId];
+          await discordCh.send(formatStats(hubState.stats.summarize(), hubState.url));
         } else {
           await discordCh.send("No Hubs room is currently bridged to this channel.");
         }

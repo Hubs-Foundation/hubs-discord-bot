@@ -1,3 +1,6 @@
+const { HubStats } = require("./stats.js");
+const { PresenceRollups } = require("./presence-rollups.js");
+
 // Represents our knowledge about a hub on a particular Reticulum server.
 class HubState {
 
@@ -7,6 +10,9 @@ class HubState {
     this.name = name;
     this.slug = slug;
     this.ts = ts;
+    this.stats = new HubStats();
+    this.presenceRollups = new PresenceRollups();
+    this.mediaBroadcasts = {}; // { url: timestamp }
   }
 
   get url() {
