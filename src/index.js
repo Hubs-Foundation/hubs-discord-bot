@@ -155,7 +155,7 @@ function establishBridge(binding) {
       stats.arrive(Date.now());
     }
   });
-  reticulumCh.on('moved', (id, kind, prev) => {
+  reticulumCh.on('moved', (id, kind, _prev) => {
     if (kind === "room") {
       stats.arrive(Date.now());
     }
@@ -246,7 +246,7 @@ function scheduleSummaryPosting(bindings, queue) {
       day: "numeric"
     });
     queue.enqueue(async () => {
-      for (const [hubId, { discordCh, hubState }] of Object.entries(bindings.bindingsByHub)) {
+      for (const { discordCh, hubState } of Object.values(bindings.bindingsByHub)) {
         if (discordCh.guild && whitelistedGuilds.has(discordCh.guild.id)) {
           const summary = hubState.stats.summarize(start.getTime(), end.getTime());
           if (summary.peakCcu > 0) {
@@ -274,7 +274,8 @@ async function start() {
   const bindings = new ChannelBindings();
   const topicManager = new TopicManager(HOSTNAMES);
   const q = new DiscordEventQueue();
-  const summaryJob = scheduleSummaryPosting(bindings, q);
+
+  scheduleSummaryPosting(bindings, q);
 
   // one-time scan through all channels to look for existing bindings
   console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
