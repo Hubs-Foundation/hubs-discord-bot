@@ -7,6 +7,16 @@ const VERBOSE = (process.env.VERBOSE === "true");
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
+const LOCAL_DT_FORMAT = new Intl.DateTimeFormat(process.env.LOCALE, {
+  timeZone: process.env.TIMEZONE,
+  timeZoneName: "short",
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  second: "numeric"
+});
 
 const discord = require('discord.js');
 const schedule = require('node-schedule');
@@ -47,8 +57,7 @@ function formatDiscordCh(discordCh) {
 // Formats user activity statistics for a hub.
 function formatStats(stats, where, when) {
   const header = when != null ? `Hubs activity in <${where}> for ${when}:\n` : `Hubs activity in <${where}>:\n`;
-  const peakTimeDescription = stats.peakTime == null ? "N/A" :
-        new Date(stats.peakTime).toLocaleString(process.env.LOCALE, { timeZone: process.env.TIMEZONE, timeZoneName: "short" });
+  const peakTimeDescription = stats.peakTime == null ? "N/A" : LOCAL_DT_FORMAT.format(new Date(stats.peakTime));
   return header +
     "```\n" +
     `Room joins: ${stats.arrivals}\n` +
@@ -229,17 +238,17 @@ function scheduleSummaryPosting(bindings, queue) {
     var end = new Date(start.getTime());
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
+    const when = start.toLocaleDateString(process.env.LOCALE, {
+      timeZone: process.env.TIMEZONE,
+      weekday: "long",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric"
+    });
     queue.enqueue(async () => {
       for (const [hubId, { discordCh, hubState }] of Object.entries(bindings.bindingsByHub)) {
         if (discordCh.guild && whitelistedGuilds.has(discordCh.guild.id)) {
           const summary = hubState.stats.summarize(start.getTime(), end.getTime());
-          const when = start.toLocaleDateString(process.env.LOCALE, {
-            timeZone: process.env.TIMEZONE,
-            weekday: "long",
-            year: "numeric",
-            month: "numeric",
-            day: "numeric"
-          });
           await discordCh.send(formatStats(summary, hubState.url, when));
         }
       }
@@ -419,7 +428,7 @@ async function start() {
             `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
               `🦆 <#${discordCh.id}> bridged to Hubs room "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
               `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
-              `🦆 Connected since ${binding.hubState.ts.toISOString()}.\n\n`
+              `🦆 Connected since ${LOCAL_DT_FORMAT.format(new Date(binding.hubState.ts))}.\n\n`
           );
         } else {
           const webhook = await getHubsWebhook(msg.channel);
