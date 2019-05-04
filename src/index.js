@@ -489,8 +489,12 @@ async function start() {
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
           const { hubState, reticulumCh } = bindings.bindingsByHub[hubId];
-          const names = Object.values(reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName).join(", ");
-          await discordCh.send(`Users currently in <${hubState.url}>: **${names}**`);
+          const names = Object.values(reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName);
+          if (names.length) {
+            await discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
+          } else {
+            await discordCh.send(`No users currently in <${hubState.url}>.`);
+          }
         } else {
           await discordCh.send("No Hubs room is currently bridged to this channel.");
         }
