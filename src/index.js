@@ -353,7 +353,8 @@ async function start() {
         "You can also use the following commands:\n\n" +
         "🦆 `!hubs create` - Creates a default Hubs room and puts its URL into the channel topic. " +
         "Rooms created with `!hubs create` will inherit moderation permissions from this Discord channel and only allow Discord users in this channel to join the room.\n" +
-        "🦆 `!hubs create [scene URL] [name]` - Creates a new room with the given scene and name, and puts its URL into the channel topic.\n" +
+        "🦆 `!hubs create [environment URL] [name]` - Creates a new room with the given environment and name, and puts its URL into the channel topic. " +
+        "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
         "🦆 `!hubs stats` - Shows some summary statistics about room usage.\n" +
         "🦆 `!hubs status` - Shows general information about the Hubs integration with the current Discord channel.\n" +
         "🦆 `!hubs remove` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
