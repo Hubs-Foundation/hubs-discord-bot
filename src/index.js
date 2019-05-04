@@ -451,19 +451,24 @@ async function start() {
           return;
         }
 
-        if (args.length == 2) { // !hubs create
+        if (args.length === 2) { // !hubs create
           const guildId = discordCh.guild.id;
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(discordCh.name);
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(discordCh.name);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
           return;
         }
 
         const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
+        const name = args.length === 4 ? args[3] : (sceneSlug || discordCh.name);
+        const guildId = discordCh.guild.id;
         if (sceneUrl) { // !hubs create [scene URL] [name]
-          const name = sceneSlug || discordCh.name;
-          const guildId = discordCh.guild.id;
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(name, sceneId);
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
+          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+          await reticulumClient.bindHub(hubId, guildId, channelId);
+          return;
+        } else { // !hubs create [environment URL] [name]
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, args[2]);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
           return;
