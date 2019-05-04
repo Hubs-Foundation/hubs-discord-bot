@@ -353,7 +353,8 @@ async function start() {
         "You can also use the following commands:\n\n" +
         "🦆 `!hubs create` - Creates a default Hubs room and puts its URL into the channel topic. " +
         "Rooms created with `!hubs create` will inherit moderation permissions from this Discord channel and only allow Discord users in this channel to join the room.\n" +
-        "🦆 `!hubs create [scene URL] [name]` - Creates a new room with the given scene and name, and puts its URL into the channel topic.\n" +
+        "🦆 `!hubs create [environment URL] [name]` - Creates a new room with the given environment and name, and puts its URL into the channel topic. " +
+        "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
         "🦆 `!hubs stats` - Shows some summary statistics about room usage.\n" +
         "🦆 `!hubs status` - Shows general information about the Hubs integration with the current Discord channel.\n" +
         "🦆 `!hubs remove` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
@@ -451,19 +452,24 @@ async function start() {
           return;
         }
 
-        if (args.length == 2) { // !hubs create
+        if (args.length === 2) { // !hubs create
           const guildId = discordCh.guild.id;
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(discordCh.name);
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(discordCh.name);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
           return;
         }
 
         const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
+        const name = args.length === 4 ? args[3] : (sceneSlug || discordCh.name);
+        const guildId = discordCh.guild.id;
         if (sceneUrl) { // !hubs create [scene URL] [name]
-          const name = sceneSlug || discordCh.name;
-          const guildId = discordCh.guild.id;
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHub(name, sceneId);
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
+          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
+          await reticulumClient.bindHub(hubId, guildId, channelId);
+          return;
+        } else { // !hubs create [environment URL] [name]
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, args[2]);
           await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
           await reticulumClient.bindHub(hubId, guildId, channelId);
           return;

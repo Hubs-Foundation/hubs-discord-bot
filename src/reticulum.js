@@ -192,17 +192,15 @@ class ReticulumClient {
     });
   }
 
-  // Creates a new hub with the name and scene, or a random scene if not specified. Returns the URL for the hub.
-  async createHub(name, sceneId) {
-    const payload = { hub: { name } };
+  // Creates a new hub with the given name and scene.
+  async createHubFromScene(name, sceneId) {
+    const payload = { hub: { name, scene_id: sceneId } };
+    return this._request("POST", "hubs", payload);
+  }
 
-    // wow, what a hack
-    if (sceneId) {
-      payload.hub.scene_id = sceneId;
-    } else {
-      payload.hub.default_environment_gltf_bundle_url = DEFAULT_BUNDLE_URL;
-    }
-
+  // Creates a new hub with the given name and GLTF/GLB/bundle URL, or the default if not specified.
+  async createHubFromUrl(name, url) {
+    const payload = { hub: { name, default_environment_gltf_bundle_url: url || DEFAULT_BUNDLE_URL } };
     return this._request("POST", "hubs", payload);
   }
 
