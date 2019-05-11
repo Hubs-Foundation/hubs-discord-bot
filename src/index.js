@@ -3,26 +3,21 @@ const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
 
-const VERBOSE = (process.env.VERBOSE === "true");
-const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
-const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
-const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
-const LOCAL_DT_FORMAT = new Intl.DateTimeFormat(process.env.LOCALE, {
-  timeZone: process.env.TIMEZONE,
-  timeZoneName: "short",
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-  hour: "numeric",
-  minute: "numeric",
-  second: "numeric"
-});
-
+const moment = require('moment-timezone');
 const discord = require('discord.js');
 const schedule = require('node-schedule');
 const { ChannelBindings, HubState } = require("./bindings.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
+
+// someday we will probably have different locales and timezones per server
+moment.tz.setDefault(process.env.TIMEZONE);
+moment.locale(process.env.LOCALE);
+
+const VERBOSE = (process.env.VERBOSE === "true");
+const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
+const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
+const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
 
 // Serializes invocations of the tasks in the queue. Used to ensure that we completely finish processing
 // a single Discord event before processing the next one, e.g. we don't interleave work from a user command
@@ -59,7 +54,7 @@ function formatDiscordCh(discordCh) {
 // Formats user activity statistics for a hub.
 function formatStats(stats, where, when) {
   const header = when != null ? `Hubs activity in <${where}> for ${when}:\n` : `Hubs activity in <${where}>:\n`;
-  const peakTimeDescription = stats.peakTime == null ? "N/A" : LOCAL_DT_FORMAT.format(new Date(stats.peakTime));
+  const peakTimeDescription = stats.peakTime == null ? "N/A" : moment(stats.peakTime).format('LTS z');
   return header +
     "```\n" +
     `Room joins: ${stats.arrivals}\n` +
@@ -234,23 +229,21 @@ function establishBridge(binding) {
 function scheduleSummaryPosting(bindings, queue) {
   // only enable on hubs discord and test server until we're sure we like this
   const whitelistedGuilds = new Set(["525537221764317195", "498741086295031808"]);
-  const rule = new schedule.RecurrenceRule(null, null, null, null, 23, 59, 59);
+  const rule = new schedule.RecurrenceRule(null, null, null, null, null, 0, 0);
+  rule.second = null;
   return schedule.scheduleJob(rule, function(date) {
-    var start = date;
-    var end = new Date(start.getTime());
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
-    const when = start.toLocaleDateString(process.env.LOCALE, {
-      timeZone: process.env.TIMEZONE,
-      weekday: "long",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric"
-    });
+    const end = moment(date);
+    const start = moment(end).subtract(1, "days");
+    if (end.hour() !== 0) { // only post once, at midnight local time
+      return;
+    }
     queue.enqueue(async () => {
+      const when = start.format("LL");
+      const startTs = start.valueOf();
+      const endTs = end.valueOf();
       for (const { discordCh, hubState } of Object.values(bindings.bindingsByHub)) {
         if (discordCh.guild && whitelistedGuilds.has(discordCh.guild.id)) {
-          const summary = hubState.stats.summarize(start.getTime(), end.getTime());
+          const summary = hubState.stats.summarize(startTs, endTs);
           if (summary.peakCcu > 0) {
             await discordCh.send(formatStats(summary, hubState.url, when));
           }
@@ -435,7 +428,7 @@ async function start() {
             `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
               `🦆 <#${discordCh.id}> bridged to Hubs room "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
               `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
-              `🦆 Connected since ${LOCAL_DT_FORMAT.format(new Date(binding.hubState.ts))}.\n\n`
+              `🦆 Connected since ${moment(binding.hubState.ts).format("LLLL z")}.\n\n`
           );
         } else {
           const webhook = await getHubsWebhook(msg.channel);
