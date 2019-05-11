@@ -13,7 +13,42 @@ class HubState {
     this.ts = ts;
     this.stats = new HubStats();
     this.presenceRollups = new PresenceRollups();
-    this.mediaBroadcasts = {}; // { url: timestamp }
+  }
+
+  // Begins tracking activity on the Phoenix channel in the `stats` and `presenceRollups`.
+  initializePresence() {
+    let nRoomOccupants = 0;
+    for (const p of Object.values(this.reticulumCh.getUsers())) {
+      if (p.metas.some(m => m.presence === "room")) {
+        nRoomOccupants++;
+      }
+    }
+    if (nRoomOccupants > 0) {
+      this.stats.arrive(Date.now(), nRoomOccupants);
+    }
+
+    this.reticulumCh.on('join', (id, kind, whom) => {
+      const now = Date.now();
+      this.presenceRollups.arrive(id, whom, now);
+      if (kind === "room") {
+        this.stats.arrive(Date.now());
+      }
+    });
+    this.reticulumCh.on('moved', (id, kind, _prev) => {
+      if (kind === "room") {
+        this.stats.arrive(Date.now());
+      }
+    });
+    this.reticulumCh.on('leave', (id, kind, whom) => {
+      const now = Date.now();
+      this.presenceRollups.depart(id, whom, now);
+      if (kind === "room") {
+        this.stats.depart(now);
+      }
+    });
+    this.reticulumCh.on('renameuser', (id, kind, prev, curr) => {
+      this.presenceRollups.rename(id, prev, curr, Date.now());
+    });
   }
 
   get url() {
@@ -22,27 +57,48 @@ class HubState {
 
 }
 
-// Represents all state related to the bridging between Discord channels and Hubs rooms.
-class ChannelBridges {
+// Represents the current mapping between Discord channels and Hubs rooms for bridging purposes.
+class Bridges {
 
   constructor() {
-    this.hubsByChannel = {};
-    this.bridgesByHub = {};
+    this.hubsByChannel = {}; // {discord channel ID: hub state}
+    this.channelsByHub = {}; // {hub ID: {discord channel ID: discord channel}}
+  }
+
+  getHub(discordChId) { return this.hubsByChannel[discordChId]; }
+  getChannels(hubId) { return this.channelsByHub[hubId] || new Map(); }
+
+  // Returns an array of all (hubState, discordCh) bridged pairs.
+  entries() {
+    const entries = [];
+    for (const [discordChId, hubState] of Object.entries(this.hubsByChannel)) {
+      const discordCh = this.channelsByHub[hubState.id][discordChId];
+      entries.push({ hubState, discordCh });
+    }
+    return entries;
   }
 
   // Removes an entry from the mapping.
-  dissociate(hubId) {
-    const bridge = this.bridgesByHub[hubId];
-    delete this.hubsByChannel[bridge.discordCh.id];
-    delete this.bridgesByHub[hubId];
+  dissociate(hubId, discordChId) {
+    delete this.hubsByChannel[discordChId];
+    const channels = this.channelsByHub[hubId];
+    if (channels != null) {
+      if (channels.size === 0) {
+        delete this.channelsByHub[hubId];
+      }
+    }
   }
 
   // Adds a new entry to the mapping.
-  associate(discordCh, webhook, hubState) {
-    this.hubsByChannel[discordCh.id] = hubState.id;
-    return this.bridgesByHub[hubState.id] = { hubState, discordCh, webhook };
+  associate(hubState, discordCh) {
+    this.hubsByChannel[discordCh.id] = hubState;
+    let channels = this.channelsByHub[hubState.id];
+    if (channels == null) {
+      channels = this.channelsByHub[hubState.id] = new Map();
+    }
+    channels.set(discordCh.id, discordCh);
   }
 
 }
 
-module.exports = { ChannelBridges, HubState };
+module.exports = { Bridges, HubState };
