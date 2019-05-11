@@ -4,7 +4,8 @@ const { PresenceRollups } = require("./presence-rollups.js");
 // Represents our knowledge about a hub on a particular Reticulum server.
 class HubState {
 
-  constructor(host, id, name, slug, ts) {
+  constructor(reticulumCh, host, id, name, slug, ts) {
+    this.reticulumCh = reticulumCh;
     this.host = host;
     this.id = id;
     this.name = name;
@@ -25,7 +26,7 @@ class HubState {
 class ChannelBindings {
 
   constructor() {
-    this.hubsByChannel = {};
+    this.hubsByChannel = {}; // channel ID: hub ID or null
     this.bindingsByHub = {};
   }
 
@@ -37,9 +38,9 @@ class ChannelBindings {
   }
 
   // Adds a new entry to the mapping.
-  associate(reticulumCh, discordCh, webhook, hubState, host) {
+  associate(discordCh, webhook, hubState) {
     this.hubsByChannel[discordCh.id] = hubState.id;
-    return this.bindingsByHub[hubState.id] = { hubState, host, discordCh, reticulumCh, webhook };
+    return this.bindingsByHub[hubState.id] = { hubState, discordCh, webhook };
   }
 
 }

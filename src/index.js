@@ -103,11 +103,11 @@ async function trySetTopic(discordCh, newTopic) {
 }
 
 function establishBridge(binding) {
-  const { reticulumCh, discordCh, hubState: state } = binding;
+  const { discordCh, hubState: state } = binding;
   const { stats, presenceRollups, mediaBroadcasts } = state;
 
   let nRoomOccupants = 0;
-  for (const p of Object.values(reticulumCh.getUsers())) {
+  for (const p of Object.values(state.reticulumCh.getUsers())) {
     if (p.metas.some(m => m.presence === "room")) {
       nRoomOccupants++;
     }
@@ -142,7 +142,7 @@ function establishBridge(binding) {
     }
   });
 
-  reticulumCh.on('join', (id, kind, whom) => {
+  state.reticulumCh.on('join', (id, kind, whom) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying join for ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
@@ -152,12 +152,12 @@ function establishBridge(binding) {
       stats.arrive(Date.now());
     }
   });
-  reticulumCh.on('moved', (id, kind, _prev) => {
+  state.reticulumCh.on('moved', (id, kind, _prev) => {
     if (kind === "room") {
       stats.arrive(Date.now());
     }
   });
-  reticulumCh.on('leave', (id, kind, whom) => {
+  state.reticulumCh.on('leave', (id, kind, whom) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying leave for ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
@@ -167,19 +167,19 @@ function establishBridge(binding) {
       stats.depart(now);
     }
   });
-  reticulumCh.on('renameuser', (id, kind, prev, curr) => {
+  state.reticulumCh.on('renameuser', (id, kind, prev, curr) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying rename from ${prev} to ${curr} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     presenceRollups.rename(id, prev, curr, Date.now());
   });
-  reticulumCh.on('rescene', (id, whom, scene) => {
+  state.reticulumCh.on('rescene', (id, whom, scene) => {
     if (VERBOSE) {
       console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${state.id} to ${formatDiscordCh(discordCh)}.`));
     }
     discordCh.send(`${whom} changed the scene in ${state.url} to ${scene.name}.`);
   });
-  reticulumCh.on('renamehub', (id, whom, name, slug) => {
+  state.reticulumCh.on('renamehub', (id, whom, name, slug) => {
     state.name = name;
     state.slug = slug;
     if (VERBOSE) {
@@ -188,7 +188,7 @@ function establishBridge(binding) {
     discordCh.send(`${whom} renamed the hub at ${state.url} to ${state.name}.`);
   });
 
-  reticulumCh.on("message", (id, whom, type, body) => {
+  state.reticulumCh.on("message", (id, whom, type, body) => {
     const webhook = binding.webhook; // note that this may change over the lifetime of the binding
     if (webhook == null) {
       if (VERBOSE) {
@@ -283,8 +283,8 @@ async function start() {
           reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}.`)); });
           const hub = (await reticulumCh.connect()).hubs[0];
           const webhook = await getHubsWebhook(chan);
-          const state = new HubState(hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-          const binding = bindings.associate(reticulumCh, chan, webhook, state, hubUrl.host);
+          const state = new HubState(reticulumCh, hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
+          const binding = bindings.associate(chan, webhook, state);
           establishBridge(binding);
         } catch (e) {
           console.error(ts(`Failed to bridge to ${hubUrl}:`), e);
@@ -318,8 +318,8 @@ async function start() {
         try {
           if (prevHubId) {
             console.info(ts(`Hubs room ${prevHubId} no longer bridged to ${formatDiscordCh(newChannel)}; leaving.`));
-            const { hubState, reticulumCh } = bindings.bindingsByHub[prevHubId];
-            await reticulumCh.close();
+            const { hubState } = bindings.bindingsByHub[prevHubId];
+            await hubState.reticulumCh.close();
             bindings.dissociate(prevHubId);
             await newChannel.send(`<#${newChannel.id}> no longer bridged to <${hubState.url}>.`);
           }
@@ -328,8 +328,8 @@ async function start() {
             reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${currHubId} with session ID ${id}.`)); });
             const hub = (await reticulumCh.connect()).hubs[0];
             const webhook = await getHubsWebhook(newChannel);
-            const state = new HubState(currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-            const binding = bindings.associate(reticulumCh, newChannel, webhook, state, currHubUrl.host);
+            const state = new HubState(reticulumCh, currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
+            const binding = bindings.associate(newChannel, webhook, state);
             establishBridge(binding);
             if (webhook != null) {
               await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
@@ -391,15 +391,15 @@ async function start() {
       if (args[0] !== "!hubs") {
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
-          const binding = bindings.bindingsByHub[hubId];
-          if (binding.webhook != null && msg.webhookID === binding.webhook.id) { // don't echo our own messages
+          const { hubState, webhook } = bindings.bindingsByHub[hubId];
+          if (webhook != null && msg.webhookID === webhook.id) { // don't echo our own messages
             return;
           }
           if (msg.cleanContent) { // could be blank if the message is e.g. only an attachment
             if (VERBOSE) {
               console.debug(ts(`Relaying chat message via ${formatDiscordCh(discordCh)} to hub ${hubId}.`));
             }
-            binding.reticulumCh.sendMessage(msg.author.username, "chat", msg.cleanContent);
+            hubState.reticulumCh.sendMessage(msg.author.username, "chat", msg.cleanContent);
           }
 
           // todo: we don't currently have any principled way of representing non-image attachments in hubs --
@@ -411,7 +411,7 @@ async function start() {
             if (VERBOSE) {
               console.debug(ts(`Relaying attachment via ${formatDiscordCh(discordCh)} to hub ${hubId}.`));
             }
-            binding.reticulumCh.sendMessage(msg.author.username, "image", { "src": attachment.url });
+            hubState.reticulumCh.sendMessage(msg.author.username, "image", { "src": attachment.url });
           }
         }
         return;
@@ -423,12 +423,12 @@ async function start() {
         // "!hubs status" == emit useful info about the current bot and hub state
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
-          const binding = bindings.bindingsByHub[hubId];
+          const { hubState, webhook } = bindings.bindingsByHub[hubId];
           await discordCh.send(
             `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
-              `🦆 <#${discordCh.id}> bridged to Hubs room "${binding.hubState.name}" (${binding.hubState.id}) at <${binding.hubState.url}>.\n` +
-              `🦆 ${binding.webhook ? `Bridging chat using the webhook "${binding.webhook.name}" (${binding.webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
-              `🦆 Connected since ${moment(binding.hubState.ts).format("LLLL z")}.\n\n`
+              `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
+              `🦆 ${webhook ? `Bridging chat using the webhook "${webhook.name}" (${webhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
+              `🦆 Connected since ${moment(hubState.ts).format("LLLL z")}.\n\n`
           );
         } else {
           const webhook = await getHubsWebhook(msg.channel);
@@ -490,8 +490,8 @@ async function start() {
         // "!hubs users" == list users
         if (discordCh.id in bindings.hubsByChannel) {
           const hubId = bindings.hubsByChannel[discordCh.id];
-          const { hubState, reticulumCh } = bindings.bindingsByHub[hubId];
-          const names = Object.values(reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName);
+          const { hubState } = bindings.bindingsByHub[hubId];
+          const names = Object.values(hubState.reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName);
           if (names.length) {
             await discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
           } else {
