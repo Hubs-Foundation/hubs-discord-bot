@@ -49,6 +49,8 @@ function ts(str) {
 function formatDiscordCh(discordCh) {
   if (VERBOSE && discordCh.guild && discordCh.name) {
     return `${discordCh.guild.name}/#${discordCh.name} (${discordCh.id})`;
+  } else if (discordCh.guild) {
+    return `${discordCh.guild.id}/${discordCh.id}`;
   } else {
     return discordCh.id;
   }
