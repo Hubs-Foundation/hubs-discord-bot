@@ -6,7 +6,7 @@ dotenv.config({ path: ".env.defaults" });
 const moment = require('moment-timezone');
 const discord = require('discord.js');
 const schedule = require('node-schedule');
-const { ChannelBindings, HubState } = require("./bindings.js");
+const { ChannelBridges, HubState } = require("./bridges.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
 
@@ -102,8 +102,8 @@ async function trySetTopic(discordCh, newTopic) {
   });
 }
 
-function establishBridge(binding) {
-  const { discordCh, hubState: state } = binding;
+function establishBridge(bridge) {
+  const { discordCh, hubState: state } = bridge;
   const { stats, presenceRollups, mediaBroadcasts } = state;
 
   let nRoomOccupants = 0;
@@ -189,7 +189,7 @@ function establishBridge(binding) {
   });
 
   state.reticulumCh.on("message", (id, whom, type, body) => {
-    const webhook = binding.webhook; // note that this may change over the lifetime of the binding
+    const webhook = bridge.webhook; // note that this may change over the lifetime of the bridge
     if (webhook == null) {
       if (VERBOSE) {
         console.debug(`Ignoring message of type ${type} in ${formatDiscordCh(discordCh)} because no webhook is associated.`);
@@ -226,7 +226,7 @@ function establishBridge(binding) {
   });
 }
 
-function scheduleSummaryPosting(bindings, queue) {
+function scheduleSummaryPosting(bridges, queue) {
   // only enable on hubs discord and test server until we're sure we like this
   const whitelistedGuilds = new Set(["525537221764317195", "498741086295031808"]);
   const rule = new schedule.RecurrenceRule(null, null, null, null, null, 0, 0);
@@ -241,7 +241,7 @@ function scheduleSummaryPosting(bindings, queue) {
       const when = start.format("LL");
       const startTs = start.valueOf();
       const endTs = end.valueOf();
-      for (const { discordCh, hubState } of Object.values(bindings.bindingsByHub)) {
+      for (const { discordCh, hubState } of Object.values(bridges.bridgesByHub)) {
         if (discordCh.guild && whitelistedGuilds.has(discordCh.guild.id)) {
           const summary = hubState.stats.summarize(startTs, endTs);
           if (summary.peakCcu > 0) {
@@ -266,13 +266,13 @@ async function start() {
   await reticulumClient.connect();
   console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${JSON.stringify(reticulumClient.socket.params().session_id)}).`));
 
-  const bindings = new ChannelBindings();
+  const bridges = new ChannelBridges();
   const topicManager = new TopicManager(HOSTNAMES);
   const q = new DiscordEventQueue();
 
-  scheduleSummaryPosting(bindings, q);
+  scheduleSummaryPosting(bridges, q);
 
-  // one-time scan through all channels to look for existing bindings
+  // one-time scan through all channels to look for existing bridges
   console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   for (let [_, chan] of discordClient.channels.filter(ch => ch.type === "text")) {
     q.enqueue(async () => {
@@ -284,8 +284,8 @@ async function start() {
           const hub = (await reticulumCh.connect()).hubs[0];
           const webhook = await getHubsWebhook(chan);
           const state = new HubState(reticulumCh, hubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-          const binding = bindings.associate(chan, webhook, state);
-          establishBridge(binding);
+          const bridge = bridges.associate(chan, webhook, state);
+          establishBridge(bridge);
         } catch (e) {
           console.error(ts(`Failed to bridge to ${hubUrl}:`), e);
         }
@@ -295,32 +295,32 @@ async function start() {
 
   discordClient.on('webhookUpdate', (discordCh) => {
     q.enqueue(async () => {
-      const hubId = bindings.hubsByChannel[discordCh.id];
-      const binding = bindings.bindingsByHub[hubId];
-      if (binding != null) {
-        const oldWebhook = binding.webhook;
+      const hubId = bridges.hubsByChannel[discordCh.id];
+      const bridge = bridges.bridgesByHub[hubId];
+      if (bridge != null) {
+        const oldWebhook = bridge.webhook;
         const newWebhook = await getHubsWebhook(discordCh);
         if (oldWebhook != null && newWebhook == null) {
           await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable bridging.");
         } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
           await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
         }
-        binding.webhook = newWebhook;
+        bridge.webhook = newWebhook;
       }
     });
   });
 
   discordClient.on('channelUpdate', (oldChannel, newChannel) => {
     q.enqueue(async () => {
-      const prevHubId = bindings.hubsByChannel[oldChannel.id];
+      const prevHubId = bridges.hubsByChannel[oldChannel.id];
       const { hubUrl: currHubUrl, hubId: currHubId } = topicManager.matchHub(newChannel.topic) || {};
       if (prevHubId !== currHubId) {
         try {
           if (prevHubId) {
             console.info(ts(`Hubs room ${prevHubId} no longer bridged to ${formatDiscordCh(newChannel)}; leaving.`));
-            const { hubState } = bindings.bindingsByHub[prevHubId];
+            const { hubState } = bridges.bridgesByHub[prevHubId];
             await hubState.reticulumCh.close();
-            bindings.dissociate(prevHubId);
+            bridges.dissociate(prevHubId);
             await newChannel.send(`<#${newChannel.id}> no longer bridged to <${hubState.url}>.`);
           }
           if (currHubId) {
@@ -329,8 +329,8 @@ async function start() {
             const hub = (await reticulumCh.connect()).hubs[0];
             const webhook = await getHubsWebhook(newChannel);
             const state = new HubState(reticulumCh, currHubUrl.host, hub.hub_id, hub.name, hub.slug, new Date());
-            const binding = bindings.associate(newChannel, webhook, state);
-            establishBridge(binding);
+            const bridge = bridges.associate(newChannel, webhook, state);
+            establishBridge(bridge);
             if (webhook != null) {
               await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
             } else {
@@ -389,9 +389,9 @@ async function start() {
 
       // echo normal chat messages into the hub, if we're bridged to a hub
       if (args[0] !== "!hubs") {
-        if (discordCh.id in bindings.hubsByChannel) {
-          const hubId = bindings.hubsByChannel[discordCh.id];
-          const { hubState, webhook } = bindings.bindingsByHub[hubId];
+        if (discordCh.id in bridges.hubsByChannel) {
+          const hubId = bridges.hubsByChannel[discordCh.id];
+          const { hubState, webhook } = bridges.bridgesByHub[hubId];
           if (webhook != null && msg.webhookID === webhook.id) { // don't echo our own messages
             return;
           }
@@ -421,9 +421,9 @@ async function start() {
 
       case "status": {
         // "!hubs status" == emit useful info about the current bot and hub state
-        if (discordCh.id in bindings.hubsByChannel) {
-          const hubId = bindings.hubsByChannel[discordCh.id];
-          const { hubState, webhook } = bindings.bindingsByHub[hubId];
+        if (discordCh.id in bridges.hubsByChannel) {
+          const hubId = bridges.hubsByChannel[discordCh.id];
+          const { hubState, webhook } = bridges.bridgesByHub[hubId];
           await discordCh.send(
             `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
               `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
@@ -488,9 +488,9 @@ async function start() {
 
       case "users": {
         // "!hubs users" == list users
-        if (discordCh.id in bindings.hubsByChannel) {
-          const hubId = bindings.hubsByChannel[discordCh.id];
-          const { hubState } = bindings.bindingsByHub[hubId];
+        if (discordCh.id in bridges.hubsByChannel) {
+          const hubId = bridges.hubsByChannel[discordCh.id];
+          const { hubState } = bridges.bridgesByHub[hubId];
           const names = Object.values(hubState.reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName);
           if (names.length) {
             await discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
@@ -505,9 +505,9 @@ async function start() {
 
       case "stats": {
         // "!hubs stats" == stats for the current hub
-        if (discordCh.id in bindings.hubsByChannel) {
-          const hubId = bindings.hubsByChannel[discordCh.id];
-          const { hubState } = bindings.bindingsByHub[hubId];
+        if (discordCh.id in bridges.hubsByChannel) {
+          const hubId = bridges.hubsByChannel[discordCh.id];
+          const { hubState } = bridges.bridgesByHub[hubId];
           await discordCh.send(formatStats(hubState.stats.summarize(), hubState.url));
         } else {
           await discordCh.send("No Hubs room is currently bridged to this channel.");

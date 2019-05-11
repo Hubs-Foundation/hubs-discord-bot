@@ -22,27 +22,27 @@ class HubState {
 
 }
 
-// Represents all state related to the mapping between Discord channels and Hubs rooms.
-class ChannelBindings {
+// Represents all state related to the bridging between Discord channels and Hubs rooms.
+class ChannelBridges {
 
   constructor() {
-    this.hubsByChannel = {}; // channel ID: hub ID or null
-    this.bindingsByHub = {};
+    this.hubsByChannel = {};
+    this.bridgesByHub = {};
   }
 
   // Removes an entry from the mapping.
   dissociate(hubId) {
-    const binding = this.bindingsByHub[hubId];
-    delete this.hubsByChannel[binding.discordCh.id];
-    delete this.bindingsByHub[hubId];
+    const bridge = this.bridgesByHub[hubId];
+    delete this.hubsByChannel[bridge.discordCh.id];
+    delete this.bridgesByHub[hubId];
   }
 
   // Adds a new entry to the mapping.
   associate(discordCh, webhook, hubState) {
     this.hubsByChannel[discordCh.id] = hubState.id;
-    return this.bindingsByHub[hubState.id] = { hubState, discordCh, webhook };
+    return this.bridgesByHub[hubState.id] = { hubState, discordCh, webhook };
   }
 
 }
 
-module.exports = { ChannelBindings, HubState };
+module.exports = { ChannelBridges, HubState };
