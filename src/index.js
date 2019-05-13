@@ -341,14 +341,17 @@ async function start() {
     });
   });
 
-  const HELP_TEXT = "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (https://hubs.mozilla.com/). Any room with its URL in a channel topic will bridge chat and media back and forth between the channel and the room." +
-        "You can also use the following commands:\n\n" +
+  const HELP_PREFIX = "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (<https://hubs.mozilla.com/>). Type `!hubs help` for more information.";
+
+  const COMMAND_HELP_TEXT =
+        "Command reference:\n\n" +
+        "🦆 `!hubs` - Shows general information about the Hubs integration with the current Discord channel.\n" +
+        "🦆 `!hubs help` - Shows this text you're reading right now.\n" +
         "🦆 `!hubs create` - Creates a default Hubs room and puts its URL into the channel topic. " +
         "Rooms created with `!hubs create` will inherit moderation permissions from this Discord channel and only allow Discord users in this channel to join the room.\n" +
         "🦆 `!hubs create [environment URL] [name]` - Creates a new room with the given environment and name, and puts its URL into the channel topic. " +
         "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
         "🦆 `!hubs stats` - Shows some summary statistics about room usage.\n" +
-        "🦆 `!hubs status` - Shows general information about the Hubs integration with the current Discord channel.\n" +
         "🦆 `!hubs remove` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
         "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
@@ -373,16 +376,10 @@ async function start() {
         console.debug(ts(`Processing message from ${msg.author.id}: "${msg.content}"`));
       }
 
-      if (msg.content === "!hubs") {
-        await discordCh.send(HELP_TEXT);
-        return;
-      }
-
       if (!discordCh.guild) { // e.g. you DMed the bot
-        await discordCh.send(
-          "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (https://hubs.mozilla.com/).\n\n" +
+        await discordCh.send(HELP_PREFIX + "\n\n" +
           "I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
-          "If you're curious about what I do, try `!hubs` or check out https://github.com/MozillaReality/hubs-discord-bot."
+          "If you're curious about what I do, try `!hubs help` or check out https://github.com/MozillaReality/hubs-discord-bot."
         );
         return;
       }
@@ -417,23 +414,31 @@ async function start() {
 
       switch (args[1]) {
 
-      case "status": {
-        // "!hubs status" == emit useful info about the current bot and hub state
+      case undefined: {
+        // "!hubs" == emit useful info about the current bot and hub state
         if (hubState != null) {
+          const userCount = Object.values(hubState.reticulumCh.getUsers()).length;
           await discordCh.send(
-            `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
+            HELP_PREFIX + `.\n\n` +
               `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
               `🦆 ${activeWebhook ? `Bridging chat using the webhook "${activeWebhook.name}" (${activeWebhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
-              `🦆 Connected since ${moment(hubState.ts).format("LLLL z")}.\n\n`
+              `🦆 Connected since ${moment(hubState.ts).format("LLLL z")}.\n` +
+              `🦆 There are ${userCount} users in the room.`
           );
         } else {
           const candidateWebhook = await getHubsWebhook(msg.channel);
           await discordCh.send(
-            `I am the Hubs Discord bot, linking to any Hubs room URLs I see in channel topics on ${HOSTNAMES.join(", ")}.\n\n` +
-              `🦆 This channel isn't bridged to any room on Hubs. Use !hubs to create or add a Hubs room to the topic to bridge it.\n` +
+            HELP_PREFIX + `.\n\n` +
+              `🦆 This channel isn't bridged to any room on Hubs. Use \`!hubs create\` to create a room, or add an existing Hubs room to the topic to bridge it.\n` +
               `🦆 ${candidateWebhook ? `The webhook "${candidateWebhook.name}" (${candidateWebhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
           );
         }
+        return;
+      }
+
+      case "help": {
+        // !hubs help == bot command reference
+        await discordCh.send(COMMAND_HELP_TEXT);
         return;
       }
 
