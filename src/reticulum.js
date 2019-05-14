@@ -119,6 +119,7 @@ class ReticulumChannel extends EventEmitter {
     return promisifyPush(this.channel.leave());
   }
 
+  // Returns the most recent display name of the given session ID in presence.
   getName(sessionId) {
     const userInfo = this.presence.state[sessionId];
     if (userInfo) {
@@ -144,6 +145,10 @@ class ReticulumChannel extends EventEmitter {
     this.channel.push("message", { type: kind, from: name, body }); // no ack is expected
   }
 
+  // Updates our profile metadata in presence.
+  updateProfile(profile) {
+    this.channel.push("events:profile_updated", { profile }); // no ack is expected
+  }
 }
 
 // State related to the Phoenix connection to Reticulum, independent of any particular Phoenix channel.
@@ -217,16 +222,10 @@ class ReticulumClient {
   }
 
   // Returns a channel object for the given Hub room's Phoenix channel.
-  //
-  // The channel name is used when joining the channel as part of our presence metadata to inform other users
-  // which Discord channel we're bridging to.
-  channelForHub(hubId, channelName) {
+  channelForHub(hubId, profile) {
     const payload = {
-      context: { mobile: false, hmd: false, discord: channelName },
-      profile: {
-        displayName: "Hubs Bot",
-        avatarId: "" // todo: is this good?
-      },
+      profile: profile,
+      context: { mobile: false, hmd: false },
       bot_access_key: process.env.RETICULUM_BOT_ACCESS_KEY
     };
     return new ReticulumChannel(this.socket.channel(`hub:${hubId}`, payload));
