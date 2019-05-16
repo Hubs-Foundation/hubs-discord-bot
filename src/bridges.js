@@ -87,6 +87,7 @@ class Bridges {
         delete this.channelsByHub[hubId];
       }
     }
+    channels.delete(discordChId);
   }
 
   // Adds a new entry to the mapping.

@@ -78,6 +78,20 @@ function formatEvent(users, verb) {
   }
 }
 
+// Creates a presence profile object suitable for the bot user.
+function serializeProfile(displayName, discordChannels) {
+  return {
+    displayName,
+    avatarId: "",
+    discordBridges: discordChannels.map(c => {
+      return {
+        guild: { id: c.guild.id, name: c.guild.name },
+        channel: { id: c.id, name: c.name }
+      };
+    })
+  };
+}
+
 // Returns a promise indicating when the Discord client is connected and ready to query the API.
 async function connectToDiscord(client, token) {
   return new Promise((resolve, reject) => {
@@ -233,8 +247,8 @@ function scheduleSummaryPosting(bridges, queue) {
 }
 
 // Connects to the Phoenix channel for a hub and returns a HubState for that hub.
-async function connectToHub(reticulumClient, host, hubId, channelName) {
-  const reticulumCh = reticulumClient.channelForHub(hubId, channelName);
+async function connectToHub(reticulumClient, discordChannels, host, hubId) {
+  const reticulumCh = reticulumClient.channelForHub(hubId, serializeProfile("Hubs Bot", discordChannels));
   reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}.`)); });
   const resp = (await reticulumCh.connect()).hubs[0];
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date());
@@ -261,31 +275,32 @@ async function start() {
   scheduleSummaryPosting(bridges, q);
 
   // one-time scan through all channels to look for existing bridges
-  console.info(ts(`Monitoring channels for Hubs hosts: ${HOSTNAMES.join(", ")}`));
-  for (let [_, discordCh] of discordClient.channels.filter(ch => ch.type === "text")) {
-    await q.enqueue(async () => {
-      const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
-      if (hubUrl != null) {
-        try {
-          let hubState = connectedHubs[hubId];
-          if (hubState == null) {
-            hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, hubUrl.host, hubId, discordCh.name);
-          }
-          bridges.associate(hubState, discordCh);
-          ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
-          console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
-        } catch (e) {
-          console.error(ts(`Failed to bridge ${formatDiscordCh(discordCh)} to ${hubUrl}:`), e);
-        }
+  const initialBridgeMapping = new Map(); // { (host, hubId): [discord channels] }
+  console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
+  for (const [_, discordCh] of discordClient.channels.filter(ch => ch.type === "text")) {
+    const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
+    if (hubUrl != null) {
+      const key = `${hubUrl.host} ${hubId}`;
+      let bridgedChannels = initialBridgeMapping.get(key);
+      if (bridgedChannels == null) {
+        initialBridgeMapping.set(key, bridgedChannels = []);
       }
-    });
+      bridgedChannels.push(discordCh);
+    }
   }
-
-  console.info(ts(`Initial scan done; activating ${bridges.entries().length} bridge(s).`));
-  for (const hub of Object.values(connectedHubs)) {
-    hub.initializePresence();
-    establishBridging(hub, bridges);
+  console.info(ts(`Initial scan done; bridging ${initialBridgeMapping.size} hub(s).`));
+  for (const [key, channels] of initialBridgeMapping.entries()) {
+    const [host, hubId] = key.split(" ", 2);
+    const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
+    for (const discordCh of channels) {
+      bridges.associate(hubState, discordCh);
+      ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
+      console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
+    }
+    hubState.initializePresence();
+    establishBridging(hubState, bridges);
   }
+  initialBridgeMapping.clear();
 
   discordClient.on('webhookUpdate', (discordCh) => {
     q.enqueue(async () => {
@@ -311,20 +326,29 @@ async function start() {
         if (prevHub != null && prevHub.id != currHubId) {
           console.info(ts(`Hubs room ${prevHub.id} no longer bridged to ${formatDiscordCh(newChannel)}; leaving.`));
           bridges.dissociate(prevHub.id, newChannel.id);
-          if (bridges.getChannels(prevHub.id).size === 0) {
+          const bridgedChannels = bridges.getChannels(prevHub.id);
+          if (bridgedChannels.size === 0) {
             console.info(ts(`Disconnecting from Hubs room ${prevHub.id}.`));
             connectedHubs[prevHub.id] = null;
             await prevHub.reticulumCh.close();
+          } else {
+            prevHub.reticulumCh.updateProfile(serializeProfile("Hubs Bot", Array.from(bridgedChannels.values())));
           }
           await newChannel.send(`<#${newChannel.id}> no longer bridged to <${prevHub.url}>.`);
         }
         if (currHubId != null && (prevHub == null || prevHub.id != currHubId)) {
           let currHub = connectedHubs[currHubId];
           if (currHub == null) {
-            currHub = connectedHubs[currHubId] = await connectToHub(reticulumClient, currHubUrl.host, currHubId, newChannel.name);
+            currHub = connectedHubs[currHubId] = await connectToHub(reticulumClient, [newChannel], currHubUrl.host, currHubId);
+            currHub.initializePresence();
             establishBridging(currHub, bridges);
+            bridges.associate(currHub, newChannel);
+          } else {
+            bridges.associate(currHub, newChannel);
+            const bridgedChannels = bridges.getChannels(currHubId);
+            currHub.reticulumCh.updateProfile(serializeProfile("Hubs Bot", Array.from(bridgedChannels.values())));
           }
-          bridges.associate(currHub, newChannel);
+
           const webhook = ACTIVE_WEBHOOKS[newChannel.id] = await getHubsWebhook(newChannel);
           if (webhook != null) {
             await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
@@ -509,13 +533,6 @@ async function start() {
         }
         return;
       }
-
-      case undefined:
-      default: {
-        await discordCh.send(HELP_TEXT);
-        return;
-      }
-
       }
     });
   });
