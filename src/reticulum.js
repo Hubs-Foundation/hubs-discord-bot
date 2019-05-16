@@ -225,7 +225,7 @@ class ReticulumClient {
   channelForHub(hubId, profile) {
     const payload = {
       profile: profile,
-      context: { mobile: false, hmd: false },
+      context: { mobile: false, hmd: false, discord: true },
       bot_access_key: process.env.RETICULUM_BOT_ACCESS_KEY
     };
     return new ReticulumChannel(this.socket.channel(`hub:${hubId}`, payload));
