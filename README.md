@@ -4,7 +4,7 @@
 
 A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
-[Request an invitation link to add the Discord Bot to a server you own][bot-invite] by emailing hubs@mozilla.com.
+[Add the bot to your server](https://hubs.mozilla.com/discord)
 
 * [What it does](#what-it-does)
   * [Room/channel permissions linkage](#room-channel-permissions-linkage)
