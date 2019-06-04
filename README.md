@@ -1,10 +1,10 @@
 # hubs-discord-bot (Beta)
 
+## [Add the hosted bot to your server](https://hubs.mozilla.com/discord)
+
 **Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
 
 A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
-
-[Add the bot to your server](https://hubs.mozilla.com/discord)
 
 * [What it does](#what-it-does)
   * [Room/channel permissions linkage](#room-channel-permissions-linkage)
