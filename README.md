@@ -1,6 +1,7 @@
 # hubs-discord-bot (Beta)
 
 ## [Add the hosted bot to your server](https://hubs.mozilla.com/discord)
+### [Video introduction](https://www.youtube.com/watch?v=5HtRJolThZ8)
 
 **Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
 
