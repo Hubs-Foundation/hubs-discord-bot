@@ -323,7 +323,7 @@ async function start() {
         const oldWebhook = ACTIVE_WEBHOOKS[discordCh.id];
         const newWebhook = await getHubsWebhook(discordCh);
         if (oldWebhook != null && newWebhook == null) {
-          await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable bridging.");
+          await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable chat bridging.");
         } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
           await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
         }
@@ -366,7 +366,7 @@ async function start() {
           if (webhook != null) {
             await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
           } else {
-            await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}. No webhook is present, so bridging won't work. Add a channel webhook to enable bridging.`);
+            await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}. No webhook is present, so chat won't work. If you add a channel webhook, chat will get bridged as well.`);
           }
           console.info(ts(`Hubs room ${currHubId} bridged to ${formatDiscordCh(newChannel)}.`));
         }
@@ -393,7 +393,7 @@ async function start() {
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
         "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
-        "and more about how the bot bridges channels to rooms.";
+        "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
 
   discordClient.on('message', msg => {
     q.enqueue(async () => {
