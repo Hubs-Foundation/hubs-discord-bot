@@ -17,7 +17,7 @@
     "node": ">=8.0.0"
   },
   "dependencies": {
-    "discord.js": "github:discordjs/discord.js#11.4-dev",
+    "discord.js": "^11.5.1",
     "dotenv": "^6.2.0",
     "escape-string-regexp": "^1.0.5",
     "moment-timezone": "^0.5.25",
