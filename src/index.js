@@ -280,7 +280,7 @@ async function start() {
   const reticulumHost = process.env.RETICULUM_HOST;
   const reticulumClient = new ReticulumClient(reticulumHost);
   await reticulumClient.connect();
-  console.info(ts(`Connected to Reticulum (${reticulumHost}; session ID: ${JSON.stringify(reticulumClient.socket.params().session_id)}).`));
+  console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
 
   const connectedHubs = {}; // { hubId: hubState }
   const bridges = new Bridges();
@@ -303,7 +303,7 @@ async function start() {
       bridgedChannels.push(discordCh);
     }
   }
-  console.info(ts(`Initial scan done; bridging ${initialBridgeMapping.size} hub(s).`));
+  console.info(ts(`Initial scan done; bridging ${initialBridgeMapping.size} room(s).`));
   for (const [key, channels] of initialBridgeMapping.entries()) {
     const [host, hubId] = key.split(" ", 2);
     const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
