@@ -114,7 +114,8 @@ async function trySetTopic(discordCh, newTopic) {
     if (!(e instanceof discord.DiscordAPIError)) {
       throw e;
     } else {
-      discordCh.send(`I don't seem to have "manage channel" permission in this channel, so I can't change the topic.`);
+      discordCh.send("Sorry, you'll need to give me \"manage channel\" permissions in this channel to do that, so that I can change the topic.");
+      return null;
     }
   });
 }
@@ -486,10 +487,11 @@ async function start() {
         }
 
         if (args.length === 2) { // !hubs create
-          const guildId = discordCh.guild.id;
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(discordCh.name);
-          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
-          await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+          const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
+          if (await trySetTopic(discordCh, updatedTopic) != null) {
+            await reticulumClient.bindHub(hubId, discordCh.guild.id, discordCh.id);
+          }
           return;
         }
 
@@ -498,15 +500,18 @@ async function start() {
         const guildId = discordCh.guild.id;
         if (sceneUrl) { // !hubs create [scene URL] [name]
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
-          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
-          await reticulumClient.bindHub(hubId, guildId, discordCh.id);
-          return;
+          const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
+          if (await trySetTopic(discordCh, updatedTopic) != null) {
+            await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+          }
         } else { // !hubs create [environment URL] [name]
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, args[2]);
-          await trySetTopic(discordCh, topicManager.addHub(discordCh.topic, hubUrl));
-          await reticulumClient.bindHub(hubId, guildId, discordCh.id);
-          return;
+          const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
+          if (await trySetTopic(discordCh, updatedTopic) != null) {
+            await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+          }
         }
+        return;
       }
 
       case "remove": {
