@@ -1,54 +1,15 @@
-const { HubStats } = require("./stats.js");
-const { PresenceRollups } = require("./presence-rollups.js");
-
 // Represents our knowledge about a hub on a particular Reticulum server.
 class HubState {
 
-  constructor(reticulumCh, host, id, name, slug, ts) {
+  constructor(reticulumCh, host, id, name, slug, ts, stats, presenceRollups) {
     this.reticulumCh = reticulumCh;
     this.host = host;
     this.id = id;
     this.name = name;
     this.slug = slug;
     this.ts = ts;
-    this.stats = new HubStats();
-    this.presenceRollups = new PresenceRollups();
-  }
-
-  // Begins tracking activity on the Phoenix channel in the `stats` and `presenceRollups`.
-  initializePresence() {
-    let nRoomOccupants = 0;
-    for (const p of Object.values(this.reticulumCh.getUsers())) {
-      if (p.metas.some(m => m.presence === "room")) {
-        nRoomOccupants++;
-      }
-    }
-    if (nRoomOccupants > 0) {
-      this.stats.arrive(Date.now(), nRoomOccupants);
-    }
-
-    this.reticulumCh.on('join', (id, kind, whom) => {
-      const now = Date.now();
-      this.presenceRollups.arrive(id, whom, now);
-      if (kind === "room") {
-        this.stats.arrive(Date.now());
-      }
-    });
-    this.reticulumCh.on('moved', (id, kind, _prev) => {
-      if (kind === "room") {
-        this.stats.arrive(Date.now());
-      }
-    });
-    this.reticulumCh.on('leave', (id, kind, whom) => {
-      const now = Date.now();
-      this.presenceRollups.depart(id, whom, now);
-      if (kind === "room") {
-        this.stats.depart(now);
-      }
-    });
-    this.reticulumCh.on('renameuser', (id, kind, prev, curr) => {
-      this.presenceRollups.rename(id, prev, curr, Date.now());
-    });
+    this.stats = stats;
+    this.presenceRollups = presenceRollups;
   }
 
   get url() {

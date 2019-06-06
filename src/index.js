@@ -9,6 +9,8 @@ const schedule = require('node-schedule');
 const { Bridges, HubState } = require("./bridges.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
+const { HubStats } = require("./stats.js");
+const { PresenceRollups } = require("./presence-rollups.js");
 
 // someday we will probably have different locales and timezones per server
 moment.tz.setDefault(process.env.TIMEZONE);
@@ -156,7 +158,7 @@ function establishBridging(hubState, bridges) {
     }
   });
 
-  reticulumCh.on('rescene', (id, whom, scene) => {
+  reticulumCh.on('rescene', (timestamp, id, whom, scene) => {
     for (const discordCh of bridges.getChannels(hubState.id).values()) {
       if (VERBOSE) {
         console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
@@ -164,7 +166,7 @@ function establishBridging(hubState, bridges) {
       discordCh.send(`${whom} changed the scene in ${hubState.url} to ${scene.name}.`);
     }
   });
-  reticulumCh.on('renamehub', (id, whom, name, slug) => {
+  reticulumCh.on('renamehub', (timestamp, id, whom, name, slug) => {
     for (const discordCh of bridges.getChannels(hubState.id).values()) {
       hubState.name = name;
       hubState.slug = slug;
@@ -176,12 +178,11 @@ function establishBridging(hubState, bridges) {
   });
 
   const mediaBroadcasts = {}; // { url: timestamp }
-  reticulumCh.on("message", (id, whom, type, body) => {
+  reticulumCh.on("message", (timestamp, id, whom, type, body) => {
     if (type === "media") {
       // we really like to deduplicate media broadcasts of the same object in short succession,
       // mostly because of the case where people are repositioning pinned media, but also because
       // sometimes people will want to clone a bunch of one thing and pin them all in one go
-      const timestamp = Date.now();
       const lastBroadcast = mediaBroadcasts[body.src];
       if (lastBroadcast != null) {
         const elapsedMs = timestamp - lastBroadcast;
@@ -249,9 +250,22 @@ function scheduleSummaryPosting(bridges, queue) {
 // Connects to the Phoenix channel for a hub and returns a HubState for that hub.
 async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   const reticulumCh = reticulumClient.channelForHub(hubId, serializeProfile("Hubs Bot", discordChannels));
-  reticulumCh.on("connect", id => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}.`)); });
+  reticulumCh.on("connect", (timestamp, id) => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}.`)); });
   const resp = (await reticulumCh.connect()).hubs[0];
-  return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date());
+  const stats = new HubStats();
+  const presenceRollups = new PresenceRollups();
+  let nRoomOccupants = 0;
+  for (const p of Object.values(reticulumCh.getUsers())) {
+    if (p.metas.some(m => m.presence === "room")) {
+      nRoomOccupants++;
+    }
+  }
+  if (nRoomOccupants > 0) {
+    stats.arrive(Date.now(), nRoomOccupants);
+  }
+  stats.subscribeToChannel(reticulumCh);
+  presenceRollups.subscribeToChannel(reticulumCh);
+  return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
 async function start() {
@@ -297,7 +311,6 @@ async function start() {
       ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
       console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
     }
-    hubState.initializePresence();
     establishBridging(hubState, bridges);
   }
   initialBridgeMapping.clear();
@@ -340,7 +353,6 @@ async function start() {
           let currHub = connectedHubs[currHubId];
           if (currHub == null) {
             currHub = connectedHubs[currHubId] = await connectToHub(reticulumClient, [newChannel], currHubUrl.host, currHubId);
-            currHub.initializePresence();
             establishBridging(currHub, bridges);
             bridges.associate(currHub, newChannel);
           } else {

@@ -1,7 +1,7 @@
 const EventEmitter = require('events');
 
 // Data structure for tracking the series of arrivals/departures in a hub and rolling it up
-// into a useful stream of Discord notifications. When new arrivals or departures happen, either
+// into a useful stream of notifications. When new arrivals or departures happen, either
 // a new notification will be produced, or the most recent notification will be amended. If
 // a user renames themselves rapidly after arriving, the arrival will be amended to have their
 // new name.
@@ -41,6 +41,12 @@ class PresenceRollups extends EventEmitter {
       // The duration for which we wait for someone to rejoin before we announce their departure.
       departRejoinPatienceMs: 15 * 1000,
     }, options);
+  }
+
+  subscribeToChannel(reticulumCh) {
+    reticulumCh.on('join', (ts, id, kind, whom) => { this.arrive(id, whom, ts); });
+    reticulumCh.on('leave', (ts, id, kind, whom) => { this.depart(id, whom, ts); });
+    reticulumCh.on('renameuser', (ts, id, kind, prev, curr) => { this.rename(id, prev, curr, ts); });
   }
 
   latest() {

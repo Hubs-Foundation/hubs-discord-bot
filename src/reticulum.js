@@ -43,15 +43,15 @@ class ReticulumChannel extends EventEmitter {
         // this guy was already in the lobby or room, notify iff their name changed or they moved between the lobby and room
         const previous = curr.metas[curr.metas.length - 1];
         if (previous.profile && mostRecent.profile && previous.profile.displayName !== mostRecent.profile.displayName) {
-          this.emit('renameuser', id, mostRecent.presence, previous.profile.displayName, mostRecent.profile.displayName);
+          this.emit('renameuser', Date.now(), id, mostRecent.presence, previous.profile.displayName, mostRecent.profile.displayName);
         }
         if (previous.presence === "lobby" && mostRecent.presence && previous.presence !== mostRecent.presence) {
-          this.emit('moved', id, mostRecent.presence, previous.presence);
+          this.emit('moved', Date.now(), id, mostRecent.presence, previous.presence);
         }
         return;
       }
       // this guy was not previously present, notify for a join
-      this.emit('join', id, mostRecent.presence, mostRecent.profile.displayName);
+      this.emit('join', Date.now(), id, mostRecent.presence, mostRecent.profile.displayName);
     });
 
     this.presence.onLeave((id, curr, p) => {
@@ -62,16 +62,16 @@ class ReticulumChannel extends EventEmitter {
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
         return; // this guy is still in the lobby or room, don't notify yet
       }
-      this.emit('leave', id, mostRecent.presence, mostRecent.profile.displayName);
+      this.emit('leave', Date.now(), id, mostRecent.presence, mostRecent.profile.displayName);
     });
 
     this.channel.on("hub_refresh", ({ session_id, stale_fields, hubs }) => {
       const sender = this.getName(session_id);
       if (stale_fields.includes('scene')) {
-        this.emit('rescene', session_id, sender, hubs[0].scene);
+        this.emit('rescene', Date.now(), session_id, sender, hubs[0].scene);
       }
       if (stale_fields.includes('name')) { // for some reason it doesn't say that the slug is stale, but it is
-        this.emit('renamehub', session_id, sender, hubs[0].name, hubs[0].slug);
+        this.emit('renamehub', Date.now(), session_id, sender, hubs[0].name, hubs[0].slug);
       }
     });
 
@@ -83,7 +83,7 @@ class ReticulumChannel extends EventEmitter {
           gltf_node.extensions.HUBS_components.media &&
           gltf_node.extensions.HUBS_components.media.src) {
         const sender = this.getName(pinned_by);
-        this.emit('message', null, sender, "media", { src: gltf_node.extensions.HUBS_components.media.src });
+        this.emit('message', Date.now(), null, sender, "media", { src: gltf_node.extensions.HUBS_components.media.src });
       }
     });
 
@@ -93,7 +93,7 @@ class ReticulumChannel extends EventEmitter {
         return;
       }
       const sender = from || this.getName(session_id);
-      this.emit('message', session_id, sender, type, body);
+      this.emit('message', Date.now(), session_id, sender, type, body);
     });
 
     const data = await new Promise((resolve, reject) => {
@@ -102,7 +102,7 @@ class ReticulumChannel extends EventEmitter {
         .receive("timeout", reject)
         .receive("ok", data => { // this "ok" handler will be called on reconnects as well
 
-          this.emit('connect', data.session_id);
+          this.emit('connect', Date.now(), data.session_id);
           // note that it's kind of inherently strange that session IDs are associated with our socket on the
           // server, but we get them out only from channel join messages, causing this code to be in a weird
           // place. roll with it now i guess

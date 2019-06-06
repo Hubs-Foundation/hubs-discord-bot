@@ -10,6 +10,12 @@ class HubStats {
     this.timeline = [];
   }
 
+  subscribeToChannel(reticulumCh) {
+    reticulumCh.on('join', (ts, id, kind) => { if (kind === "room") { this.arrive(ts); } });
+    reticulumCh.on('moved', (ts, id, kind) => { if (kind === "room") { this.arrive(ts); } });
+    reticulumCh.on('leave', (ts, id, kind) => { if (kind === "room") { this.depart(ts); } });
+  }
+
   // Marks the arrival of N new users.
   arrive(timestamp, n) {
     n = (n != null) ? n : 1;
