@@ -304,14 +304,18 @@ async function start() {
   }
   console.info(ts(`Initial scan done; bridging ${initialBridgeMapping.size} room(s).`));
   for (const [key, channels] of initialBridgeMapping.entries()) {
-    const [host, hubId] = key.split(" ", 2);
-    const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
-    for (const discordCh of channels) {
-      bridges.associate(hubState, discordCh);
-      ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
-      console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
+    try {
+      const [host, hubId] = key.split(" ", 2);
+      const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
+      for (const discordCh of channels) {
+        bridges.associate(hubState, discordCh);
+        ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
+        console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
+      }
+      establishBridging(hubState, bridges);
+    } catch (e) {
+      console.error(ts("Error connecting to bridged room: "), e);
     }
-    establishBridging(hubState, bridges);
   }
   initialBridgeMapping.clear();
 
