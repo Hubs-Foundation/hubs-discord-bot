@@ -46,7 +46,7 @@ class Bridges {
     if (channels != null) {
       channels.delete(discordChId);
       if (channels.size === 0) {
-        this.channelsByHub.delete(hubId);
+        delete this.channelsByHub[hubId];
       }
     }
   }
