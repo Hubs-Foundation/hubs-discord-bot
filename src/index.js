@@ -225,7 +225,6 @@ function scheduleSummaryPosting(bridges, queue) {
   // only enable on hubs discord and test server until we're sure we like this
   const whitelistedGuilds = new Set(["525537221764317195", "498741086295031808"]);
   const rule = new schedule.RecurrenceRule(null, null, null, null, null, 0, 0);
-  rule.second = null;
   return schedule.scheduleJob(rule, function(date) {
     const end = moment(date);
     const start = moment(end).subtract(1, "days");
