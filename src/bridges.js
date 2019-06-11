@@ -23,7 +23,7 @@ class Bridges {
 
   constructor() {
     this.hubsByChannel = {}; // {discord channel ID: hub state}
-    this.channelsByHub = {}; // {hub ID: {discord channel ID: discord channel}}
+    this.channelsByHub = {}; // {hub ID: Map(discord channel ID: discord channel)}
   }
 
   getHub(discordChId) { return this.hubsByChannel[discordChId]; }
@@ -33,7 +33,7 @@ class Bridges {
   entries() {
     const entries = [];
     for (const [discordChId, hubState] of Object.entries(this.hubsByChannel)) {
-      const discordCh = this.channelsByHub[hubState.id][discordChId];
+      const discordCh = this.channelsByHub[hubState.id].get(discordChId);
       entries.push({ hubState, discordCh });
     }
     return entries;
@@ -44,11 +44,11 @@ class Bridges {
     delete this.hubsByChannel[discordChId];
     const channels = this.channelsByHub[hubId];
     if (channels != null) {
+      channels.delete(discordChId);
       if (channels.size === 0) {
-        delete this.channelsByHub[hubId];
+        this.channelsByHub.delete(hubId);
       }
     }
-    channels.delete(discordChId);
   }
 
   // Adds a new entry to the mapping.
