@@ -410,9 +410,15 @@ async function start() {
         "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
 
   discordClient.on('message', msg => {
+    const args = msg.content.split(' ');
+    const discordCh = msg.channel;
+
+    // early & cheap bailout if this message isn't a bot command and isn't in a bridged channel
+    if (args[0] !== "!hubs" && bridges.getHub(discordCh.id) == null) {
+      return;
+    }
+
     q.enqueue(async () => {
-      const args = msg.content.split(' ');
-      const discordCh = msg.channel;
 
       // don't process our own messages
       const activeWebhook = ACTIVE_WEBHOOKS[discordCh.id];
@@ -435,9 +441,8 @@ async function start() {
         return;
       }
 
-      const hubState = bridges.getHub(discordCh.id);
-
       // echo normal chat messages into the hub, if we're bridged to a hub
+      const hubState = bridges.getHub(discordCh.id);
       if (args[0] !== "!hubs") {
         if (hubState == null) {
           return;
