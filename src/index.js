@@ -21,6 +21,12 @@ const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
 const ACTIVE_WEBHOOKS = {}; // { discordChId: webhook }
+const DISABLED_EVENTS = [ // only bother to disable processing on relatively high-volume events
+  "TYPING_START",
+  "MESSAGE_REACTION_ADD",
+  "MESSAGE_REACTION_REMOVE",
+  "PRESENCE_UPDATE"
+];
 
 // Serializes invocations of the tasks in the queue. Used to ensure that we completely finish processing
 // a single Discord event before processing the next one, e.g. we don't interleave work from a user command
@@ -272,7 +278,7 @@ async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
   const shardCount = parseInt(process.env.SHARD_COUNT, 10);
-  const discordClient = new discord.Client({ shardId, shardCount });
+  const discordClient = new discord.Client({ shardId, shardCount, disabledEvents: DISABLED_EVENTS });
   await connectToDiscord(discordClient, process.env.TOKEN);
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
 
