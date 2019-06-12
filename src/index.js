@@ -34,12 +34,17 @@ const DISABLED_EVENTS = [ // only bother to disable processing on relatively hig
 class DiscordEventQueue {
 
   constructor() {
+    this.size = 0;
     this.curr = Promise.resolve();
   }
 
   // Enqueues the given function to run as soon as no other functions are currently running.
   enqueue(fn) {
-    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack)));
+    this.size += 1;
+    if (this.size >= 10) {
+      console.warn(ts(`Event queue is getting backed up -- current size = ${this.size}.`));
+    }
+    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack))).finally(() => this.size -= 1);
   }
 
 }
