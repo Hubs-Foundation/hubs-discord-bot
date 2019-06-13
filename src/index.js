@@ -21,6 +21,12 @@ const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
 const ACTIVE_WEBHOOKS = {}; // { discordChId: webhook }
+const DISABLED_EVENTS = [ // only bother to disable processing on relatively high-volume events
+  "TYPING_START",
+  "MESSAGE_REACTION_ADD",
+  "MESSAGE_REACTION_REMOVE",
+  "PRESENCE_UPDATE"
+];
 
 // Serializes invocations of the tasks in the queue. Used to ensure that we completely finish processing
 // a single Discord event before processing the next one, e.g. we don't interleave work from a user command
@@ -28,12 +34,17 @@ const ACTIVE_WEBHOOKS = {}; // { discordChId: webhook }
 class DiscordEventQueue {
 
   constructor() {
+    this.size = 0;
     this.curr = Promise.resolve();
   }
 
   // Enqueues the given function to run as soon as no other functions are currently running.
   enqueue(fn) {
-    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack)));
+    this.size += 1;
+    if (this.size >= 10) {
+      console.warn(ts(`Event queue is getting backed up -- current size = ${this.size}.`));
+    }
+    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack))).finally(() => this.size -= 1);
   }
 
 }
@@ -268,11 +279,50 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
+// Returns a mapping of { (host, hubId): [discord channels] } for Hubs bridges in the given channels.
+function findBridges(topicManager, channels) {
+  const result = new Map();
+  for (const discordCh of channels) {
+    const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
+    if (hubUrl != null) {
+      const key = `${hubUrl.host} ${hubId}`;
+      let bridgedChannels = result.get(key);
+      if (bridgedChannels == null) {
+        result.set(key, bridgedChannels = []);
+      }
+      bridgedChannels.push(discordCh);
+    }
+  }
+  return result;
+}
+
+function getBridgeStats(bridges) {
+  const bridgedChannels = new Set();
+  const bridgedGuilds = new Set();
+  const bridgedRooms = new Set();
+  for (const { hubState, discordCh } of bridges.entries()) {
+    bridgedChannels.add(discordCh);
+    bridgedGuilds.add(discordCh.guild);
+    bridgedRooms.add(hubState);
+  }
+  return {
+    nChannels: bridgedChannels.size,
+    nGuilds: bridgedGuilds.size,
+    nRooms: bridgedRooms.size
+  };
+}
+
 async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
   const shardCount = parseInt(process.env.SHARD_COUNT, 10);
-  const discordClient = new discord.Client({ shardId, shardCount });
+  const discordClient = new discord.Client({
+    shardId,
+    shardCount,
+    messageCacheMaxSize: 1, // we have no use for manipulating historical messages
+    disabledEvents: DISABLED_EVENTS
+  });
+
   await connectToDiscord(discordClient, process.env.TOKEN);
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
 
@@ -289,35 +339,26 @@ async function start() {
   scheduleSummaryPosting(bridges, q);
 
   // one-time scan through all channels to look for existing bridges
-  const initialBridgeMapping = new Map(); // { (host, hubId): [discord channels] }
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
-  for (const [_, discordCh] of discordClient.channels.filter(ch => ch.type === "text")) {
-    const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
-    if (hubUrl != null) {
-      const key = `${hubUrl.host} ${hubId}`;
-      let bridgedChannels = initialBridgeMapping.get(key);
-      if (bridgedChannels == null) {
-        initialBridgeMapping.set(key, bridgedChannels = []);
+  {
+    const candidateBridges = findBridges(topicManager, discordClient.channels.filter(ch => ch.type === "text").values());
+    for (const [key, channels] of candidateBridges.entries()) {
+      try {
+        const [host, hubId] = key.split(" ", 2);
+        const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
+        for (const discordCh of channels) {
+          bridges.associate(hubState, discordCh);
+          ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
+          console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
+        }
+        establishBridging(hubState, bridges);
+      } catch (e) {
+        console.error(ts(`Error bridging Hubs room ${hubState.id} to ${formatDiscordCh(discordCh)}: `), e);
       }
-      bridgedChannels.push(discordCh);
     }
+    const { nChannels, nGuilds, nRooms } = getBridgeStats(bridges);
+    console.info(ts(`Scan finished; ${nChannels} channel(s), ${nRooms} room(s), ${nGuilds} guild(s).`));
   }
-  console.info(ts(`Initial scan done; bridging ${initialBridgeMapping.size} room(s).`));
-  for (const [key, channels] of initialBridgeMapping.entries()) {
-    try {
-      const [host, hubId] = key.split(" ", 2);
-      const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
-      for (const discordCh of channels) {
-        bridges.associate(hubState, discordCh);
-        ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
-        console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
-      }
-      establishBridging(hubState, bridges);
-    } catch (e) {
-      console.error(ts("Error connecting to bridged room: "), e);
-    }
-  }
-  initialBridgeMapping.clear();
 
   discordClient.on('webhookUpdate', (discordCh) => {
     q.enqueue(async () => {
@@ -399,9 +440,15 @@ async function start() {
         "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
 
   discordClient.on('message', msg => {
+    const args = msg.content.split(' ');
+    const discordCh = msg.channel;
+
+    // early & cheap bailout if this message isn't a bot command and isn't in a bridged channel
+    if (args[0] !== "!hubs" && bridges.getHub(discordCh.id) == null) {
+      return;
+    }
+
     q.enqueue(async () => {
-      const args = msg.content.split(' ');
-      const discordCh = msg.channel;
 
       // don't process our own messages
       const activeWebhook = ACTIVE_WEBHOOKS[discordCh.id];
@@ -424,9 +471,8 @@ async function start() {
         return;
       }
 
-      const hubState = bridges.getHub(discordCh.id);
-
       // echo normal chat messages into the hub, if we're bridged to a hub
+      const hubState = bridges.getHub(discordCh.id);
       if (args[0] !== "!hubs") {
         if (hubState == null) {
           return;
