@@ -316,7 +316,13 @@ async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
   const shardCount = parseInt(process.env.SHARD_COUNT, 10);
-  const discordClient = new discord.Client({ shardId, shardCount, disabledEvents: DISABLED_EVENTS });
+  const discordClient = new discord.Client({
+    shardId,
+    shardCount,
+    messageCacheMaxSize: 1, // we have no use for manipulating historical messages
+    disabledEvents: DISABLED_EVENTS
+  });
+
   await connectToDiscord(discordClient, process.env.TOKEN);
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
 
