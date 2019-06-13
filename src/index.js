@@ -279,6 +279,39 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
+// Returns a mapping of { (host, hubId): [discord channels] } for Hubs bridges in the given channels.
+function findBridges(topicManager, channels) {
+  const result = new Map();
+  for (const discordCh of channels) {
+    const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
+    if (hubUrl != null) {
+      const key = `${hubUrl.host} ${hubId}`;
+      let bridgedChannels = result.get(key);
+      if (bridgedChannels == null) {
+        result.set(key, bridgedChannels = []);
+      }
+      bridgedChannels.push(discordCh);
+    }
+  }
+  return result;
+}
+
+function getBridgeStats(bridges) {
+  const bridgedChannels = new Set();
+  const bridgedGuilds = new Set();
+  const bridgedRooms = new Set();
+  for (const { hubState, discordCh } of bridges.entries()) {
+    bridgedChannels.add(discordCh);
+    bridgedGuilds.add(discordCh.guild);
+    bridgedRooms.add(hubState);
+  }
+  return {
+    nChannels: bridgedChannels.size,
+    nGuilds: bridgedGuilds.size,
+    nRooms: bridgedRooms.size
+  };
+}
+
 async function start() {
 
   const shardId = parseInt(process.env.SHARD_ID, 10);
@@ -300,35 +333,26 @@ async function start() {
   scheduleSummaryPosting(bridges, q);
 
   // one-time scan through all channels to look for existing bridges
-  const initialBridgeMapping = new Map(); // { (host, hubId): [discord channels] }
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
-  for (const [_, discordCh] of discordClient.channels.filter(ch => ch.type === "text")) {
-    const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
-    if (hubUrl != null) {
-      const key = `${hubUrl.host} ${hubId}`;
-      let bridgedChannels = initialBridgeMapping.get(key);
-      if (bridgedChannels == null) {
-        initialBridgeMapping.set(key, bridgedChannels = []);
+  {
+    const candidateBridges = findBridges(topicManager, discordClient.channels.filter(ch => ch.type === "text").values());
+    for (const [key, channels] of candidateBridges.entries()) {
+      try {
+        const [host, hubId] = key.split(" ", 2);
+        const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
+        for (const discordCh of channels) {
+          bridges.associate(hubState, discordCh);
+          ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
+          console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
+        }
+        establishBridging(hubState, bridges);
+      } catch (e) {
+        console.error(ts(`Error bridging Hubs room ${hubState.id} to ${formatDiscordCh(discordCh)}: `), e);
       }
-      bridgedChannels.push(discordCh);
     }
+    const { nChannels, nGuilds, nRooms } = getBridgeStats(bridges);
+    console.info(ts(`Scan finished; ${nChannels} channel(s), ${nRooms} room(s), ${nGuilds} guild(s).`));
   }
-  console.info(ts(`Initial scan done; bridging ${initialBridgeMapping.size} room(s).`));
-  for (const [key, channels] of initialBridgeMapping.entries()) {
-    try {
-      const [host, hubId] = key.split(" ", 2);
-      const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
-      for (const discordCh of channels) {
-        bridges.associate(hubState, discordCh);
-        ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
-        console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
-      }
-      establishBridging(hubState, bridges);
-    } catch (e) {
-      console.error(ts("Error connecting to bridged room: "), e);
-    }
-  }
-  initialBridgeMapping.clear();
 
   discordClient.on('webhookUpdate', (discordCh) => {
     q.enqueue(async () => {
