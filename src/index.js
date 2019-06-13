@@ -343,8 +343,8 @@ async function start() {
   {
     const candidateBridges = findBridges(topicManager, discordClient.channels.filter(ch => ch.type === "text").values());
     for (const [key, channels] of candidateBridges.entries()) {
+      const [host, hubId] = key.split(" ", 2);
       try {
-        const [host, hubId] = key.split(" ", 2);
         const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
         for (const discordCh of channels) {
           bridges.associate(hubState, discordCh);
@@ -353,7 +353,7 @@ async function start() {
         }
         establishBridging(hubState, bridges);
       } catch (e) {
-        console.error(ts(`Error bridging Hubs room ${hubState.id} to ${formatDiscordCh(discordCh)}: `), e);
+        console.error(ts(`Error bridging Hubs room ${hubId}: `), e);
       }
     }
     const { nChannels, nGuilds, nRooms } = getBridgeStats(bridges);
