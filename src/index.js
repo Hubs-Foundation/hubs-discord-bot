@@ -9,7 +9,7 @@ const schedule = require('node-schedule');
 const { Bridges, HubState } = require("./bridges.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
-const { HubStats } = require("./stats.js");
+const { HubStats } = require("./hub-stats.js");
 const { PresenceRollups } = require("./presence-rollups.js");
 
 // someday we will probably have different locales and timezones per server
