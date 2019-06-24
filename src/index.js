@@ -11,6 +11,7 @@ const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
 const { HubStats } = require("./hub-stats.js");
 const { PresenceRollups } = require("./presence-rollups.js");
+const { StatsdClient } = require("./statsd-client.js");
 
 // someday we will probably have different locales and timezones per server
 moment.tz.setDefault(process.env.TIMEZONE);
@@ -28,6 +29,14 @@ const DISABLED_EVENTS = [ // only bother to disable processing on relatively hig
   "PRESENCE_UPDATE"
 ];
 
+let statsdClient = null;
+const statsdHost = process.env.STATSD_HOST;
+if (statsdHost) {
+  const [hostname, port] = statsdHost.split(":");
+  statsdClient = new StatsdClient(hostname, port ? parseInt(port, 10) : 8125, process.env.STATSD_PREFIX);
+  console.info(ts(`Sending metrics to statsd @ ${statsdHost}.`));
+}
+
 // Serializes invocations of the tasks in the queue. Used to ensure that we completely finish processing
 // a single Discord event before processing the next one, e.g. we don't interleave work from a user command
 // and from a channel topic update, or from two channel topic updates in quick succession.
@@ -36,15 +45,23 @@ class DiscordEventQueue {
   constructor() {
     this.size = 0;
     this.curr = Promise.resolve();
+    this._onSizeChanged();
+  }
+
+  _onSizeChanged() {
+    if (statsdClient != null) {
+      statsdClient.send("discord.queuesize", this.size, "g");
+    }
   }
 
   // Enqueues the given function to run as soon as no other functions are currently running.
   enqueue(fn) {
     this.size += 1;
-    if (this.size >= 10) {
-      console.warn(ts(`Event queue is getting backed up -- current size = ${this.size}.`));
-    }
-    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack))).finally(() => this.size -= 1);
+    this._onSizeChanged();
+    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack))).finally(() => {
+      this.size -= 1;
+      this._onSizeChanged();
+    });
   }
 
 }
@@ -138,6 +155,9 @@ function establishBridging(hubState, bridges) {
 
   const lastPresenceMessages = {}; // { discordCh: message object }
   presenceRollups.on('new', ({ kind, users, fresh }) => {
+    if (statsdClient != null) {
+      statsdClient.send("reticulum.presencechanges", 1, "c");
+    }
     for (const discordCh of bridges.getChannels(hubState.id).values()) {
       if (VERBOSE) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
@@ -154,6 +174,9 @@ function establishBridging(hubState, bridges) {
     }
   });
   presenceRollups.on('update', ({ kind, users, fresh }) => {
+    if (statsdClient != null) {
+      statsdClient.send("reticulum.presencechanges", 1, "c");
+    }
     for (const discordCh of bridges.getChannels(hubState.id).values()) {
       if (VERBOSE) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
@@ -191,6 +214,9 @@ function establishBridging(hubState, bridges) {
 
   const mediaBroadcasts = {}; // { url: timestamp }
   reticulumCh.on("message", (timestamp, id, whom, type, body) => {
+    if (statsdClient != null) {
+      statsdClient.send("reticulum.contentmsgs", 1, "c");
+    }
     if (type === "media") {
       // we really like to deduplicate media broadcasts of the same object in short succession,
       // mostly because of the case where people are repositioning pinned media, but also because
@@ -461,6 +487,10 @@ async function start() {
 
       if (VERBOSE) {
         console.debug(ts(`Processing message from ${msg.author.id}: "${msg.content}"`));
+      }
+
+      if (statsdClient != null) {
+        statsdClient.send("discord.msgs", 1, "c");
       }
 
       if (!discordCh.guild) { // e.g. you DMed the bot
