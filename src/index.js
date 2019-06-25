@@ -320,7 +320,8 @@ async function start() {
     shardId,
     shardCount,
     messageCacheMaxSize: 1, // we have no use for manipulating historical messages
-    disabledEvents: DISABLED_EVENTS
+    disabledEvents: DISABLED_EVENTS,
+    disableEveryone: true
   });
 
   await connectToDiscord(discordClient, process.env.TOKEN);
