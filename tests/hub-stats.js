@@ -1,5 +1,5 @@
 var test = require('tape');
-var { HubStats } = require('../src/stats.js');
+var { HubStats } = require('../src/hub-stats.js');
 
 test('HubStats correctly identifies peak CCU', function(t) {
   var stats = new HubStats();
