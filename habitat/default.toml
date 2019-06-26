@@ -2,6 +2,7 @@
 
 reticulum_host = "dev.reticulum.io"
 statsd_host = "localhost:8125"
+statsd_prefix = "discordbot."
 hubs_hosts = "localhost,hubs.local"
 shard_id = "0"
 shard_count = "0"
