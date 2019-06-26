@@ -122,6 +122,17 @@ function serializeProfile(displayName, discordChannels) {
   };
 }
 
+// Updates the channel name to have or not have the presence icon at the end of it, depending on whether
+// anyone is in the room or not.
+function updateChannelPresenceIcon(channel, active) {
+  const activeIcon = "🔹";
+  const cleanedName = channel.name.replace(new RegExp(`\s*${activeIcon}$`, "u"), "");
+  const updatedName = active ? (cleanedName + activeIcon) : cleanedName;
+  if (updatedName !== channel.name) {
+    channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
+  }
+}
+
 // Returns a promise indicating when the Discord client is connected and ready to query the API.
 async function connectToDiscord(client, token) {
   return new Promise((resolve, reject) => {
@@ -256,6 +267,19 @@ function establishBridging(hubState, bridges) {
       }
     }
   });
+
+  reticulumCh.on('sync', () => {
+    const userCount = reticulumCh.getUserCount();
+    for (const discordCh of bridges.getChannels(hubState.id).values()) {
+      updateChannelPresenceIcon(discordCh, userCount > 0);
+    }
+  });
+
+  // also get it right for the initial state
+  const userCount = reticulumCh.getUserCount();
+  for (const discordCh of bridges.getChannels(hubState.id).values()) {
+    updateChannelPresenceIcon(discordCh, userCount > 0);
+  }
 }
 
 function scheduleSummaryPosting(bridges, queue) {
