@@ -1,6 +1,7 @@
 # hubs-discord-bot (Beta)
 
-## [Add the hosted bot to your server](https://hubs.mozilla.com/discord)
+### [Go here to add the hosted bot to your server!][invite-page]
+
 ### [Video introduction](https://www.youtube.com/watch?v=5HtRJolThZ8)
 
 **Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
@@ -43,7 +44,7 @@ If you remove the Hubs room from the topic, bridging will stop.
 
 ### Great. I want to run this on my Discord server.
 
-The bot is currently in a closed beta, so you'll need to request an invite by emailing [hubs@mozilla.com][bot-invite].
+[Head over here to get a bot invite link.][invite-page]
 
 Once the bot is running on your server:
 
@@ -86,5 +87,6 @@ To simply run the bot process:
 
 [npm]: https://nodejs.org/en/
 [discord-docs]: https://discordapp.com/developers/docs/intro
+[invite-page]: https://hubs.mozilla.com/discord
 [hubs-discord]: https://discord.gg/wHmY4nd
 [bot-invite]: mailto:hubs@mozilla.com
