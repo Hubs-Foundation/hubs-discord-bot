@@ -65,6 +65,8 @@ class ReticulumChannel extends EventEmitter {
       this.emit('leave', Date.now(), id, mostRecent.presence, mostRecent.profile.displayName);
     });
 
+    this.presence.onSync(() => { this.emit('sync', Date.now()); });
+
     this.channel.on("hub_refresh", ({ session_id, stale_fields, hubs }) => {
       const sender = this.getName(session_id);
       if (stale_fields.includes('scene')) {
@@ -135,6 +137,17 @@ class ReticulumChannel extends EventEmitter {
     for (const id in this.presence.state) {
       if (!BOT_SESSION_IDS.has(id)) {
         result[id] = this.presence.state[id];
+      }
+    }
+    return result;
+  }
+
+  // Returns the number of users in the room, except ourselves.
+  getUserCount() {
+    let result = 0;
+    for (const id in this.presence.state) {
+      if (!BOT_SESSION_IDS.has(id)) {
+        result++;
       }
     }
     return result;
