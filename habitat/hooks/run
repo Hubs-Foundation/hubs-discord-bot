@@ -13,6 +13,8 @@ export SHARD_COUNT="{{ cfg.general.shard_count }}"
 export VERBOSE="{{ cfg.general.verbose }}"
 export LOCALE="{{ cfg.general.locale }}"
 export TIMEZONE="{{ cfg.general.timezone }}"
+export STATSD_HOST="{{ cfg.general.statsd_host }}"
+export STATSD_PREFIX="{{ cfg.general.statsd_prefix }}"
 
 cd {{pkg.svc_path}}
 
