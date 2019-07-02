@@ -128,7 +128,7 @@ function serializeProfile(displayName, discordChannels) {
 // Updates the channel name to have or not have the presence icon at the end of it, depending on whether
 // anyone is in the room or not.
 function updateChannelPresenceIcon(channel, active) {
-  const activeIcon = "🔹";
+  const activeIcon = "🔸";
   const cleanedName = channel.name.replace(new RegExp(`\s*${activeIcon}$`, "u"), "");
   const updatedName = active ? (cleanedName + activeIcon) : cleanedName;
   if (updatedName !== channel.name) {
