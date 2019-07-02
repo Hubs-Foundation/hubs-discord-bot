@@ -129,7 +129,7 @@ function serializeProfile(displayName, discordChannels) {
 // anyone is in the room or not.
 function updateChannelPresenceIcon(channel, active) {
   const activeIcon = "🔸";
-  const cleanedName = channel.name.replace(new RegExp(`\s*${activeIcon}$`, "u"), "");
+  const cleanedName = channel.name.replace(new RegExp(`${activeIcon}$`, "u"), "");
   const updatedName = active ? (cleanedName + activeIcon) : cleanedName;
   if (updatedName !== channel.name) {
     channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
