@@ -29,6 +29,9 @@ const DISABLED_EVENTS = [ // only bother to disable processing on relatively hig
   "PRESENCE_UPDATE"
 ];
 
+// base64ified so we don't have to sit around wondering where habitat drops files on the filesystem
+const DUCK_AVATAR = "data:image/png;base64,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";
+
 let statsdClient = null;
 const statsdHost = process.env.STATSD_HOST;
 if (statsdHost) {
@@ -141,22 +144,46 @@ async function connectToDiscord(client, token) {
   });
 }
 
-// Gets the canonical Hubs webhook to post messages through for a Discord channel.
-async function getHubsWebhook(discordCh) {
+async function tryGetWebhook(discordCh) {
   const hooks = await discordCh.fetchWebhooks();
-  return hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first(); // todo: should we do this .first?
+  return existingHook = hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first();
 }
 
-// Either sets the topic to something new, or complains that we didn't have the permissions.
+// Gets the canonical Hubs webhook to post messages through for a Discord channel, or creates one if it doesn't exist.
+// Complains if we don't have "manage webhooks" permission.
+async function tryGetOrCreateWebhook(discordCh) {
+  try {
+    const existingHook = await tryGetWebhook(discordCh);
+    if (existingHook != null) {
+      return existingHook;
+    } else {
+      const newHook = await discordCh.createWebhook(process.env.HUBS_HOOK, DUCK_AVATAR, "Bridging chat between Hubs and Discord.");
+      discordCh.send(`Created a new webhook (${newHook.id}) to use for Hubs chat bridging.`);
+      return newHook;
+    }
+  } catch(e) {
+    if (!(e instanceof discord.DiscordAPIError)) {
+      console.log(e);
+      throw e;
+    } else {
+      discordCh.send("Sorry, but you'll need to give me \"manage webhooks\" permission, or else I won't be able to use webhooks to bridge chat.");
+      return null;
+    }
+  }
+}
+
+// Sets the topic to something new, or complains if we don't have "manage channel" permissions.
 async function trySetTopic(discordCh, newTopic) {
-  return discordCh.setTopic(newTopic).catch(e => {
+  try {
+    return discordCh.setTopic(newTopic);
+  } catch(e) {
     if (!(e instanceof discord.DiscordAPIError)) {
       throw e;
     } else {
-      discordCh.send("Sorry, you'll need to give me \"manage channel\" permissions in this channel to do that, so that I can change the topic.");
+      discordCh.send("Sorry, but you'll need to give me \"manage channel\" permissions in this channel to do that, so that I can change the topic.");
       return null;
     }
-  });
+  };
 }
 
 // Wires up the given HubState so that messages coming out of its Reticulum channel are bridged to wherever they ought to go,
@@ -399,7 +426,7 @@ async function start() {
         const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
         for (const discordCh of channels) {
           bridges.associate(hubState, discordCh);
-          ACTIVE_WEBHOOKS[discordCh.id] = await getHubsWebhook(discordCh);
+          ACTIVE_WEBHOOKS[discordCh.id] = await tryGetOrCreateWebhook(discordCh);
           console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
         }
         establishBridging(hubState, bridges);
@@ -415,14 +442,22 @@ async function start() {
     q.enqueue(async () => {
       const hubState = bridges.getHub(discordCh.id);
       if (hubState != null) {
-        const oldWebhook = ACTIVE_WEBHOOKS[discordCh.id];
-        const newWebhook = await getHubsWebhook(discordCh);
-        if (oldWebhook != null && newWebhook == null) {
-          await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable chat bridging.");
-        } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
-          await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
+        try {
+          // don't create a new webhook except when users try to make a bridge, but respect changes to the webhook configuration
+          // and use the most up-to-date available webhooks there
+          const oldWebhook = ACTIVE_WEBHOOKS[discordCh.id];
+          const newWebhook = await tryGetWebhook(discordCh);
+          if (oldWebhook != null && newWebhook == null) {
+            await discordCh.send("Webhook disabled; Hubs will no longer bridge chat. Re-add a channel webhook to re-enable chat bridging.");
+          } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
+            await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
+          }
+          ACTIVE_WEBHOOKS[discordCh.id] = newWebhook;
+        } catch(e) {
+          if (!(e instanceof discord.DiscordAPIError)) { // if we don't have webhook looking permissions just ignore
+            throw e;
+          }
         }
-        ACTIVE_WEBHOOKS[discordCh.id] = newWebhook;
       }
     });
   });
@@ -456,14 +491,9 @@ async function start() {
             const bridgedChannels = bridges.getChannels(currHubId);
             currHub.reticulumCh.updateProfile(serializeProfile("Hubs Bot", Array.from(bridgedChannels.values())));
           }
-
-          const webhook = ACTIVE_WEBHOOKS[newChannel.id] = await getHubsWebhook(newChannel);
-          if (webhook != null) {
-            await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
-          } else {
-            await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}. No webhook is present, so chat won't work. If you add a channel webhook, chat will get bridged as well.`);
-          }
+          ACTIVE_WEBHOOKS[newChannel.id] = await tryGetOrCreateWebhook(newChannel);
           console.info(ts(`Hubs room ${currHubId} bridged to ${formatDiscordCh(newChannel)}.`));
+          await newChannel.send(`<#${newChannel.id}> bridged to ${currHubUrl}.`);
         }
       } catch (e) {
         const prevHubDesc = prevHub != null ? prevHub.id : "nowhere";
@@ -567,11 +597,9 @@ async function start() {
               `🦆 There are ${userCount} users in the room.`
           );
         } else {
-          const candidateWebhook = await getHubsWebhook(msg.channel);
           await discordCh.send(
             HELP_PREFIX + `.\n\n` +
-              `🦆 This channel isn't bridged to any room on Hubs. Use \`!hubs create\` to create a room, or add an existing Hubs room to the topic to bridge it.\n` +
-              `🦆 ${candidateWebhook ? `The webhook "${candidateWebhook.name}" (${candidateWebhook.id}) will be used for bridging chat.` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n`
+              `🦆 This channel isn't bridged to any room on Hubs. Use \`!hubs create\` to create a room, or add an existing Hubs room to the topic to bridge it.\n`
           );
         }
         return;
