@@ -146,7 +146,7 @@ async function connectToDiscord(client, token) {
 
 async function tryGetWebhook(discordCh) {
   const hooks = await discordCh.fetchWebhooks();
-  return existingHook = hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first();
+  return hooks.find(h => h.name === process.env.HUBS_HOOK) || hooks.first();
 }
 
 // Gets the canonical Hubs webhook to post messages through for a Discord channel, or creates one if it doesn't exist.
@@ -183,7 +183,7 @@ async function trySetTopic(discordCh, newTopic) {
       discordCh.send("Sorry, but you'll need to give me \"manage channel\" permissions in this channel to do that, so that I can change the topic.");
       return null;
     }
-  };
+  }
 }
 
 // Wires up the given HubState so that messages coming out of its Reticulum channel are bridged to wherever they ought to go,
