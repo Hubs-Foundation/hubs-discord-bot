@@ -163,7 +163,6 @@ async function tryGetOrCreateWebhook(discordCh) {
     }
   } catch(e) {
     if (!(e instanceof discord.DiscordAPIError)) {
-      console.log(e);
       throw e;
     } else {
       discordCh.send("Sorry, but you'll need to give me \"manage webhooks\" permission, or else I won't be able to use webhooks to bridge chat.");
