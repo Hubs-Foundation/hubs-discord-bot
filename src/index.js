@@ -425,7 +425,7 @@ async function start() {
         const hubState = connectedHubs[hubId] = await connectToHub(reticulumClient, channels, host, hubId);
         for (const discordCh of channels) {
           bridges.associate(hubState, discordCh);
-          ACTIVE_WEBHOOKS[discordCh.id] = await tryGetOrCreateWebhook(discordCh);
+          ACTIVE_WEBHOOKS[discordCh.id] = await tryGetWebhook(discordCh);
           console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
         }
         establishBridging(hubState, bridges);
