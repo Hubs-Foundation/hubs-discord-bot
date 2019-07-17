@@ -200,7 +200,7 @@ function establishBridging(hubState, bridges) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
       if (kind === "arrive") {
-        const verb = fresh ? `joined <${hubState.url}>` : "joined";
+        const verb = fresh ? `joined ${hubState.url}` : "joined";
         lastPresenceMessages[discordCh.id] = discordCh.send(formatEvent(users, verb));
       } else if (kind === "depart") {
         const verb = fresh ? `left <${hubState.url}>` : "left";
@@ -222,7 +222,7 @@ function establishBridging(hubState, bridges) {
         const verb = fresh ? `joined ${hubState.url}` : "joined";
         lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatEvent(users, verb)));
       } else if (kind === "depart") {
-        const verb = fresh ? `left ${hubState.url}` : "left";
+        const verb = fresh ? `left <${hubState.url}>` : "left";
         lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatEvent(users, verb)));
       } else if (kind === "rename") {
         lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatRename(users[0])));
