@@ -102,12 +102,12 @@ function formatRename(user) {
   return `**${user.prevName}** changed their name to **${user.name}**.`;
 }
 
-// Formats a message of the form "Alice, Bob, and Charlie verb."
-function formatEvent(users, verb) {
+// Formats a message of the form "Alice, Bob, and Charlie".
+function formatList(users) {
   if (users.length === 1) {
-    return `**${users[0].name}** ${verb}.`;
+    return `**${users[0].name}**`;
   } else {
-    return `**${users.slice(0, -1).map(u => u.name).join(", ")}** and **${users[users.length - 1].name}** ${verb}.`;
+    return `**${users.slice(0, -1).map(u => u.name).join(", ")}** and **${users[users.length - 1].name}**`;
   }
 }
 
@@ -200,11 +200,13 @@ function establishBridging(hubState, bridges) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
       if (kind === "arrive") {
-        const verb = fresh ? `joined ${hubState.shortUrl}` : "joined";
-        lastPresenceMessages[discordCh.id] = discordCh.send(formatEvent(users, verb));
+        const msg = fresh ?
+          `${formatList(users)} joined the Hubs room. Join them: ${hubState.shortUrl}` :
+          `${formatList(users)} joined the Hubs room.`;
+        lastPresenceMessages[discordCh.id] = discordCh.send(msg);
       } else if (kind === "depart") {
-        const verb = fresh ? `left <${hubState.shortUrl}>` : "left";
-        lastPresenceMessages[discordCh.id] = discordCh.send(formatEvent(users, verb));
+        const msg = `${formatList(users)} left the Hubs room.`;
+        lastPresenceMessages[discordCh.id] = discordCh.send(msg);
       } else if (kind === "rename") {
         lastPresenceMessages[discordCh.id] = discordCh.send(formatRename(users[0]));
       }
@@ -219,13 +221,15 @@ function establishBridging(hubState, bridges) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
       if (kind === "arrive") {
-        const verb = fresh ? `joined ${hubState.shortUrl}` : "joined";
-        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatEvent(users, verb)));
+        const msg = fresh ?
+          `${formatList(users)} joined the Hubs room. Join them: ${hubState.shortUrl}` :
+          `${formatList(users)} joined the Hubs room.`;
+        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(msg));
       } else if (kind === "depart") {
-        const verb = fresh ? `left <${hubState.shortUrl}>` : "left";
-        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatEvent(users, verb)));
+        const msg = `${formatList(users)} left the Hubs room.`;
+        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(msg));
       } else if (kind === "rename") {
-        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatRename(users[0])));
+        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(formatRename(users[0])));
       }
     }
   });
@@ -245,7 +249,7 @@ function establishBridging(hubState, bridges) {
       if (VERBOSE) {
         console.debug(ts(`Relaying name change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
-      discordCh.send(`${whom} renamed the hub at ${hubState.shortUrl} to ${hubState.name}.`);
+      discordCh.send(`${whom} renamed the Hubs room at ${hubState.shortUrl} to ${hubState.name}.`);
     }
   });
 
