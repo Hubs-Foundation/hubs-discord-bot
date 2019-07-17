@@ -4,6 +4,11 @@ const URL = require('url').URL;
 const HUB_ID_RE = new RegExp("^\\w{7}$");
 const SCENE_ID_RE = new RegExp("^\\w{7}$");
 
+// Cleans up trailing separators and whitespace hanging off the end of a topic string.
+function cleanSuffix(topic) {
+  return topic.replace(/(\s*\|\s*)+$/, "");
+}
+
 // Splits a URL's path into components, ignoring extra leading and trailing slashes.
 function splitPath(path) {
   const trimmed = path.replace(/^\/+|\/+$/g, '');
@@ -80,17 +85,11 @@ class TopicManager {
   }
 
   removeHub(topic) {
-    const result = topic.replace(this.hubUrlRe, "");
-    // if there's a trailing separator hanging off the end after removing hub URLs, clean it up
-    return result.replace(/\s*\|\s*$/, "");
+    return cleanSuffix(topic.replace(this.hubUrlRe, ""));
   }
 
   addHub(topic, hubUrl) {
-    if (topic) {
-      return `${topic} | ${hubUrl}`;
-    } else {
-      return hubUrl;
-    }
+    return topic ? `${topic} | ${hubUrl}` : hubUrl;
   }
 
   static buildHubUrlRegex(hostnames) {
