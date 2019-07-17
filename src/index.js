@@ -200,10 +200,10 @@ function establishBridging(hubState, bridges) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
       if (kind === "arrive") {
-        const verb = fresh ? `joined ${hubState.url}` : "joined";
+        const verb = fresh ? `joined ${hubState.shortUrl}` : "joined";
         lastPresenceMessages[discordCh.id] = discordCh.send(formatEvent(users, verb));
       } else if (kind === "depart") {
-        const verb = fresh ? `left <${hubState.url}>` : "left";
+        const verb = fresh ? `left <${hubState.shortUrl}>` : "left";
         lastPresenceMessages[discordCh.id] = discordCh.send(formatEvent(users, verb));
       } else if (kind === "rename") {
         lastPresenceMessages[discordCh.id] = discordCh.send(formatRename(users[0]));
@@ -219,10 +219,10 @@ function establishBridging(hubState, bridges) {
         console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
       if (kind === "arrive") {
-        const verb = fresh ? `joined ${hubState.url}` : "joined";
+        const verb = fresh ? `joined ${hubState.shortUrl}` : "joined";
         lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatEvent(users, verb)));
       } else if (kind === "depart") {
-        const verb = fresh ? `left <${hubState.url}>` : "left";
+        const verb = fresh ? `left <${hubState.shortUrl}>` : "left";
         lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatEvent(users, verb)));
       } else if (kind === "rename") {
         lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(msg => msg.edit(formatRename(users[0])));
@@ -235,7 +235,7 @@ function establishBridging(hubState, bridges) {
       if (VERBOSE) {
         console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
-      discordCh.send(`${whom} changed the scene in ${hubState.url} to ${scene.name}.`);
+      discordCh.send(`${whom} changed the scene in ${hubState.shortUrl} to ${scene.name}.`);
     }
   });
   reticulumCh.on('renamehub', (timestamp, id, whom, name, slug) => {
@@ -245,7 +245,7 @@ function establishBridging(hubState, bridges) {
       if (VERBOSE) {
         console.debug(ts(`Relaying name change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
-      discordCh.send(`${whom} renamed the hub at ${hubState.url} to ${hubState.name}.`);
+      discordCh.send(`${whom} renamed the hub at ${hubState.shortUrl} to ${hubState.name}.`);
     }
   });
 
