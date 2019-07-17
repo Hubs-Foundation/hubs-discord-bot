@@ -557,11 +557,10 @@ async function start() {
       }
 
       if (!discordCh.guild) { // e.g. you DMed the bot
-        await discordCh.send(HELP_PREFIX + "\n\n" +
+        return discordCh.send(HELP_PREFIX + "\n\n" +
           "I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
           "If you're curious about what I do, try `!hubs help` or check out https://github.com/MozillaReality/hubs-discord-bot."
         );
-        return;
       }
 
       // echo normal chat messages into the hub, if we're bridged to a hub
@@ -597,7 +596,7 @@ async function start() {
         // "!hubs" == emit useful info about the current bot and hub state
         if (hubState != null) {
           const userCount = Object.values(hubState.reticulumCh.getUsers()).length;
-          await discordCh.send(
+          return discordCh.send(
             HELP_PREFIX + `.\n\n` +
               `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
               `🦆 ${activeWebhook ? `Bridging chat using the webhook "${activeWebhook.name}" (${activeWebhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
@@ -605,32 +604,29 @@ async function start() {
               `🦆 There are ${userCount} users in the room.`
           );
         } else {
-          await discordCh.send(
+          return discordCh.send(
             HELP_PREFIX + `.\n\n` +
               `🦆 This channel isn't bridged to any room on Hubs. Use \`!hubs create\` to create a room, or add an existing Hubs room to the topic to bridge it.\n`
           );
         }
-        return;
       }
 
       case "help": {
         // !hubs help == bot command reference
-        await discordCh.send(COMMAND_HELP_TEXT);
-        return;
+        return discordCh.send(COMMAND_HELP_TEXT);
       }
 
       case "create": {
         // should this check the topic, or hubState? does it matter?
         if (topicManager.matchHub(discordCh.topic)) {
-          await discordCh.send("A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it.");
-          return;
+          return discordCh.send("A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it.");
         }
 
         if (args.length === 2) { // !hubs create
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(discordCh.name);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
-            await reticulumClient.bindHub(hubId, discordCh.guild.id, discordCh.id);
+            return reticulumClient.bindHub(hubId, discordCh.guild.id, discordCh.id);
           }
           return;
         }
@@ -642,13 +638,13 @@ async function start() {
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
-            await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+            return reticulumClient.bindHub(hubId, guildId, discordCh.id);
           }
         } else { // !hubs create [environment URL] [name]
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, args[2]);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
-            await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+            return reticulumClient.bindHub(hubId, guildId, discordCh.id);
           }
         }
         return;
@@ -658,12 +654,10 @@ async function start() {
         // "!hubs remove" == if a hub is bridged, remove it
         const { hubUrl } = topicManager.matchHub(discordCh.topic) || {};
         if (!hubUrl) {
-          await discordCh.send("No Hubs room is bridged in the topic, so doing nothing :eyes:");
-          return;
+          return discordCh.send("No Hubs room is bridged in the topic, so doing nothing :eyes:");
         }
 
-        await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
-        return;
+        return trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
       }
 
       case "users": {
@@ -671,25 +665,25 @@ async function start() {
         if (hubState != null) {
           const names = Object.values(hubState.reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName);
           if (names.length) {
-            await discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
+            return discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
           } else {
-            await discordCh.send(`No users currently in <${hubState.url}>.`);
+            return discordCh.send(`No users currently in <${hubState.url}>.`);
           }
         } else {
-          await discordCh.send("No Hubs room is currently bridged to this channel.");
+          return discordCh.send("No Hubs room is currently bridged to this channel.");
         }
-        return;
       }
 
       case "stats": {
         // "!hubs stats" == stats for the current hub
         if (hubState != null) {
-          await discordCh.send(formatStats(hubState.stats.summarize(), hubState.url));
+          return discordCh.send(formatStats(hubState.stats.summarize(), hubState.url));
         } else {
-          await discordCh.send("No Hubs room is currently bridged to this channel.");
+          return discordCh.send("No Hubs room is currently bridged to this channel.");
         }
         return;
       }
+
       }
     });
   });
