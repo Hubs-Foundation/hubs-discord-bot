@@ -351,7 +351,16 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
     stats.arrive(Date.now(), nRoomOccupants);
   }
   stats.subscribeToChannel(reticulumCh);
-  presenceRollups.subscribeToChannel(reticulumCh);
+
+  // wait until after the first sync, because we don't want to take action related to users who were already here
+  let initialSync = false;
+  reticulumCh.on("sync", () => {
+    if (!initialSync) {
+      initialSync = true;
+      presenceRollups.subscribeToChannel(reticulumCh);
+    }
+  });
+
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
