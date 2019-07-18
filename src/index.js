@@ -125,14 +125,16 @@ function serializeProfile(displayName, discordChannels) {
   };
 }
 
-// Updates the channel name to have or not have the presence icon at the end of it, depending on whether
+// Updates the names of the given channels to have or not have the presence icon at the end of it, depending on whether
 // anyone is in the room or not.
-function updateChannelPresenceIcon(channel, active) {
+async function updateChannelPresenceIcons(channels, active) {
   const activeIcon = "🔸";
-  const cleanedName = channel.name.replace(new RegExp(`${activeIcon}$`, "u"), "");
-  const updatedName = active ? (cleanedName + activeIcon) : cleanedName;
-  if (updatedName !== channel.name) {
-    channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
+  for (const channel of channels) {
+    const cleanedName = channel.name.replace(new RegExp(`${activeIcon}$`, "u"), "");
+    const updatedName = active ? (cleanedName + activeIcon) : cleanedName;
+    if (updatedName !== channel.name) {
+      await channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
+    }
   }
 }
 
@@ -187,7 +189,7 @@ async function trySetTopic(discordCh, newTopic) {
 
 // Wires up the given HubState so that messages coming out of its Reticulum channel are bridged to wherever they ought to go,
 // per the set of bridges currently present in `bridges`.
-function establishBridging(hubState, bridges) {
+async function establishBridging(hubState, bridges) {
   const { reticulumCh, presenceRollups } = hubState;
 
   const lastPresenceMessages = {}; // { discordCh: message object }
@@ -294,18 +296,12 @@ function establishBridging(hubState, bridges) {
     }
   });
 
-  reticulumCh.on('sync', () => {
-    const userCount = reticulumCh.getUserCount();
-    for (const discordCh of bridges.getChannels(hubState.id).values()) {
-      updateChannelPresenceIcon(discordCh, userCount > 0);
-    }
+  reticulumCh.on('sync', async () => {
+    await updateChannelPresenceIcons(bridges.getChannels(hubState.id).values(), reticulumCh.getUserCount() > 0);
   });
 
   // also get it right for the initial state
-  const userCount = reticulumCh.getUserCount();
-  for (const discordCh of bridges.getChannels(hubState.id).values()) {
-    updateChannelPresenceIcon(discordCh, userCount > 0);
-  }
+  await updateChannelPresenceIcons(bridges.getChannels(hubState.id).values(), reticulumCh.getUserCount() > 0);
 }
 
 function scheduleSummaryPosting(bridges, queue) {
@@ -428,7 +424,7 @@ async function start() {
           ACTIVE_WEBHOOKS[discordCh.id] = await tryGetWebhook(discordCh);
           console.info(ts(`Hubs room ${hubState.id} bridged to ${formatDiscordCh(discordCh)}.`));
         }
-        establishBridging(hubState, bridges);
+        await establishBridging(hubState, bridges);
       } catch (e) {
         console.error(ts(`Error bridging Hubs room ${hubId}: `), e);
       }
@@ -483,7 +479,7 @@ async function start() {
           let currHub = connectedHubs[currHubId];
           if (currHub == null) {
             currHub = connectedHubs[currHubId] = await connectToHub(reticulumClient, [newChannel], currHubUrl.host, currHubId);
-            establishBridging(currHub, bridges);
+            await establishBridging(currHub, bridges);
             bridges.associate(currHub, newChannel);
           } else {
             bridges.associate(currHub, newChannel);
