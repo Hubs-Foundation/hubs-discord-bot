@@ -16,6 +16,10 @@ class HubState {
     return `https://${this.host}/${this.id}/${this.slug}/`;
   }
 
+  get shortUrl() {
+    return `https://${this.host}/${this.id}`;
+  }
+
 }
 
 // Represents the current mapping between Discord channels and Hubs rooms for bridging purposes.
