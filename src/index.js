@@ -9,6 +9,7 @@ const schedule = require('node-schedule');
 const { Bridges, HubState } = require("./bridges.js");
 const { ReticulumClient } = require("./reticulum.js");
 const { TopicManager } = require("./topic.js");
+const { NotificationManager } = require("./notifications.js");
 const { HubStats } = require("./hub-stats.js");
 const { PresenceRollups } = require("./presence-rollups.js");
 const { StatsdClient } = require("./statsd-client.js");
@@ -168,6 +169,19 @@ async function tryGetOrCreateWebhook(discordCh) {
       throw e;
     } else {
       discordCh.send("Sorry, but you'll need to give me \"manage webhooks\" permission, or else I won't be able to use webhooks to bridge chat.");
+      return null;
+    }
+  }
+}
+
+async function tryPin(discordCh, message) {
+ try {
+   return await message.pin();
+  } catch(e) {
+    if (!(e instanceof discord.DiscordAPIError)) {
+      throw e;
+    } else {
+      message.edit("Sorry, but you'll need to give me \"manage messages\" permission, or else I won't be able to pin messages for notifications.");
       return null;
     }
   }
@@ -419,6 +433,7 @@ async function start() {
 
   const connectedHubs = {}; // { hubId: hubState }
   const bridges = new Bridges();
+  const notificationManager = new NotificationManager();
   const topicManager = new TopicManager(HOSTNAMES);
   const q = new DiscordEventQueue();
 
@@ -427,7 +442,9 @@ async function start() {
   // one-time scan through all channels to look for existing bridges
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   {
-    const candidateBridges = findBridges(topicManager, discordClient.channels.filter(ch => ch.type === "text").values());
+    const textChannels = Array.from(discordClient.channels.filter(ch => ch.type === "text").values());
+    const candidateBridges = findBridges(topicManager, textChannels);
+
     for (const [key, channels] of candidateBridges.entries()) {
       const [host, hubId] = key.split(" ", 2);
       try {
@@ -444,7 +461,28 @@ async function start() {
     }
     const { nChannels, nGuilds, nRooms } = getBridgeStats(bridges);
     console.info(ts(`Scan finished; ${nChannels} channel(s), ${nRooms} room(s), ${nGuilds} guild(s).`));
+
+    for (const discordCh of textChannels) {
+      const pins = await discordCh.fetchPinnedMessages();
+      const notifications = pins.filter(msg => {
+        return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
+      });
+      for (const msg of notifications.values()) {
+        notificationManager.add(NotificationManager.parseTimestamp(msg), msg);
+      }
+    }
+    notificationManager.start();
   }
+
+  notificationManager.on('notify', async (_when, msg) => {
+    if (VERBOSE) {
+      console.debug(ts(`Sending notification in channel ${formatDiscordCh(msg.channel)}`));
+    }
+    const hubState = bridges.getHub(msg.channel.id);
+    const description = hubState != null ? `the Hubs room at ${hubState.shortUrl}` : "a Hubs room";
+    await msg.channel.send(`@here Hey! You should join ${description}.`, { disableEveryone: false });
+    await msg.unpin();
+  });
 
   discordClient.on('webhookUpdate', (discordCh) => {
     q.enqueue(async () => {
@@ -523,6 +561,8 @@ async function start() {
         "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
         "🦆 `!hubs stats` - Shows some summary statistics about room usage.\n" +
         "🦆 `!hubs remove` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
+        "🦆 `!hubs notify set [datetime]` - Sets a one-time notification to notify @here to join the room at some future time.\n" +
+        "🦆 `!hubs notify clear` - Removes all pending notifications.\n" +
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
         "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
@@ -557,11 +597,10 @@ async function start() {
       }
 
       if (!discordCh.guild) { // e.g. you DMed the bot
-        await discordCh.send(HELP_PREFIX + "\n\n" +
+        return discordCh.send(HELP_PREFIX + "\n\n" +
           "I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
           "If you're curious about what I do, try `!hubs help` or check out https://github.com/MozillaReality/hubs-discord-bot."
         );
-        return;
       }
 
       // echo normal chat messages into the hub, if we're bridged to a hub
@@ -597,7 +636,7 @@ async function start() {
         // "!hubs" == emit useful info about the current bot and hub state
         if (hubState != null) {
           const userCount = Object.values(hubState.reticulumCh.getUsers()).length;
-          await discordCh.send(
+          return discordCh.send(
             HELP_PREFIX + `.\n\n` +
               `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
               `🦆 ${activeWebhook ? `Bridging chat using the webhook "${activeWebhook.name}" (${activeWebhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
@@ -605,32 +644,29 @@ async function start() {
               `🦆 There are ${userCount} users in the room.`
           );
         } else {
-          await discordCh.send(
+          return discordCh.send(
             HELP_PREFIX + `.\n\n` +
               `🦆 This channel isn't bridged to any room on Hubs. Use \`!hubs create\` to create a room, or add an existing Hubs room to the topic to bridge it.\n`
           );
         }
-        return;
       }
 
       case "help": {
         // !hubs help == bot command reference
-        await discordCh.send(COMMAND_HELP_TEXT);
-        return;
+        return discordCh.send(COMMAND_HELP_TEXT);
       }
 
       case "create": {
         // should this check the topic, or hubState? does it matter?
         if (topicManager.matchHub(discordCh.topic)) {
-          await discordCh.send("A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it.");
-          return;
+          return discordCh.send("A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it.");
         }
 
         if (args.length === 2) { // !hubs create
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(discordCh.name);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
-            await reticulumClient.bindHub(hubId, discordCh.guild.id, discordCh.id);
+            return reticulumClient.bindHub(hubId, discordCh.guild.id, discordCh.id);
           }
           return;
         }
@@ -642,13 +678,13 @@ async function start() {
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
-            await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+            return reticulumClient.bindHub(hubId, guildId, discordCh.id);
           }
         } else { // !hubs create [environment URL] [name]
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, args[2]);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
-            await reticulumClient.bindHub(hubId, guildId, discordCh.id);
+            return reticulumClient.bindHub(hubId, guildId, discordCh.id);
           }
         }
         return;
@@ -658,12 +694,10 @@ async function start() {
         // "!hubs remove" == if a hub is bridged, remove it
         const { hubUrl } = topicManager.matchHub(discordCh.topic) || {};
         if (!hubUrl) {
-          await discordCh.send("No Hubs room is bridged in the topic, so doing nothing :eyes:");
-          return;
+          return discordCh.send("No Hubs room is bridged in the topic, so doing nothing :eyes:");
         }
 
-        await trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
-        return;
+        return trySetTopic(discordCh, topicManager.removeHub(discordCh.topic));
       }
 
       case "users": {
@@ -671,27 +705,65 @@ async function start() {
         if (hubState != null) {
           const names = Object.values(hubState.reticulumCh.getUsers()).map(info => info.metas[0].profile.displayName);
           if (names.length) {
-            await discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
+            return discordCh.send(`Users currently in <${hubState.url}>: **${names.join(", ")}**`);
           } else {
-            await discordCh.send(`No users currently in <${hubState.url}>.`);
+            return discordCh.send(`No users currently in <${hubState.url}>.`);
           }
         } else {
-          await discordCh.send("No Hubs room is currently bridged to this channel.");
+          return discordCh.send("No Hubs room is currently bridged to this channel.");
         }
-        return;
       }
 
       case "stats": {
         // "!hubs stats" == stats for the current hub
         if (hubState != null) {
-          await discordCh.send(formatStats(hubState.stats.summarize(), hubState.url));
+          return discordCh.send(formatStats(hubState.stats.summarize(), hubState.url));
         } else {
-          await discordCh.send("No Hubs room is currently bridged to this channel.");
+          return discordCh.send("No Hubs room is currently bridged to this channel.");
         }
-        return;
       }
+
+      case "notify": {
+        if (args.length === 2) {
+          return discordCh.send(COMMAND_HELP_TEXT);
+        }
+        if (args.length === 3 && args[2] !== "clear") {
+          return discordCh.send(COMMAND_HELP_TEXT);
+        }
+        if (args.length >= 4 && args[2] !== "set") {
+          return discordCh.send(COMMAND_HELP_TEXT);
+        }
+        if (args.length === 3) { // !hubs notify clear
+          const pins = await discordCh.fetchPinnedMessages();
+          const notifications = pins.filter(msg => {
+            return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
+          });
+          if (notifications.size === 0) {
+            return discordCh.send("No notifications were scheduled, so there's nothing to remove.");
+          } else {
+            for (const msg of notifications.values()) {
+              await msg.delete();
+              notificationManager.remove(NotificationManager.parseTimestamp(msg), msg);
+            }
+            return discordCh.send(`Removed ${notifications.size} scheduled notification(s).`);
+          }
+        } else { // !hubs notify set [date/time descriptor]
+          const descriptor = args.slice(3).join(" ");
+          const when = moment(new Date(descriptor));
+          if (!when.isValid()) {
+            return discordCh.send("Sorry, I can't tell what time you are trying to tell me :(  I can read any time that Javascript's `Date.parse` knows how to read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse");
+          }
+          const msg = await discordCh.send(NotificationManager.formatMessage(when));
+          if (await tryPin(discordCh, msg) != null) {
+            notificationManager.add(when, msg);
+          }
+        }
       }
+
+      }
+
     });
+
   });
 }
 
