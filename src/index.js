@@ -307,8 +307,8 @@ async function establishBridging(hubState, bridges) {
         webhook.send(body, { username: whom });
       } else if (type === "media") {
         webhook.send(body.src, { username: whom });
-      } else if (type === "photo") {
-        // we like to just broadcast all photos, without waiting for anyone to pin them
+      } else if (type === "photo" || type == "video") {
+        // we like to just broadcast all camera photos and videos, without waiting for anyone to pin them
         webhook.send(body.src, { username: whom });
       }
     }
