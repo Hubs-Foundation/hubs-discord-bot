@@ -190,7 +190,7 @@ async function tryPin(discordCh, message) {
 // Sets the topic to something new, or complains if we don't have "manage channel" permissions.
 async function trySetTopic(discordCh, newTopic) {
   try {
-    return discordCh.setTopic(newTopic);
+    return await discordCh.setTopic(newTopic);
   } catch(e) {
     if (!(e instanceof discord.DiscordAPIError)) {
       throw e;
