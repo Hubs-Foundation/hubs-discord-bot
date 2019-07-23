@@ -464,12 +464,21 @@ async function start() {
 
     for (const discordCh of textChannels) {
       try {
-        const pins = await discordCh.fetchPinnedMessages();
-        const notifications = pins.filter(msg => {
-          return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
-        });
-        for (const msg of notifications.values()) {
-          notificationManager.add(NotificationManager.parseTimestamp(msg), msg);
+        // evaluate permissions as a kind of short-circuiting because asking for pinned messages is slow
+        // and it sucks to have to do it on literally every random channel in a server that the bot can read
+        const perms = discordCh.permissionsFor(discordClient.user);
+        if (perms.has(discord.Permissions.FLAGS.MANAGE_MESSAGES)) {
+          const pins = await discordCh.fetchPinnedMessages();
+          const notifications = pins.filter(msg => {
+            return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
+          });
+          for (const msg of notifications.values()) {
+            notificationManager.add(NotificationManager.parseTimestamp(msg), msg);
+          }
+        } else {
+          if (VERBOSE) {
+            console.debug(ts(`Skipping notification scan on Discord channel ${formatDiscordCh(discordCh)}.`));
+          }
         }
       } catch (e) {
         console.error(ts(`Error loading notifications for Discord channel ${formatDiscordCh(discordCh)}:`), e);
