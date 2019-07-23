@@ -46,7 +46,7 @@ class NotificationManager extends EventEmitter {
   start() {
     const rule = new schedule.RecurrenceRule(null, null, null, null, null, null, 0);
     return schedule.scheduleJob(rule, (date) => {
-      const now = moment(date);
+      const now = moment.utc(date);
       for (const [ts, msgs] of this.data.entries()) {
         if (ts.isSame(now, "minute")) {
           this.data.delete(ts);

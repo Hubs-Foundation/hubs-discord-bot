@@ -763,7 +763,7 @@ async function start() {
           }
         } else { // !hubs notify set [date/time descriptor]
           const descriptor = args.slice(3).join(" ");
-          const when = moment(new Date(descriptor));
+          const when = moment(descriptor);
           if (!when.isValid()) {
             return discordCh.send("Sorry, I can't tell what time you are trying to tell me :(  I can read any time that Javascript's `Date.parse` knows how to read: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse");
           }
