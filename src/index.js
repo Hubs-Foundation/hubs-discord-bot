@@ -456,7 +456,7 @@ async function start() {
         }
         await establishBridging(hubState, bridges);
       } catch (e) {
-        console.error(ts(`Error bridging Hubs room ${hubId}: `), e);
+        console.error(ts(`Error bridging Hubs room ${hubId}:`), e);
       }
     }
     const { nChannels, nGuilds, nRooms } = getBridgeStats(bridges);
@@ -475,6 +475,7 @@ async function start() {
         console.error(ts(`Error loading notifications for Discord channel ${formatDiscordCh(discordCh)}:`), e);
       }
     }
+    console.info(ts(`Notifications loaded; ${notificationManager.data.size} entries.`));
     notificationManager.start();
   }
 
