@@ -9,9 +9,6 @@ dotenv.config({ path: ".env.defaults" });
 // All of the session IDs ever assigned to the bot.
 const BOT_SESSION_IDS = new Set();
 
-// The URL for the scene used if users create a new room but don't specify a scene.
-const DEFAULT_BUNDLE_URL = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json";
-
 // Converts a Phoenix message push object into a promise that resolves when the push
 // is acknowledged by Reticulum or rejects when it times out or Reticulum produces an error.
 function promisifyPush(push) {
@@ -216,9 +213,9 @@ class ReticulumClient {
     return this._request("POST", "hubs", payload);
   }
 
-  // Creates a new hub with the given name and GLTF/GLB/bundle URL, or the default if not specified.
+  // Creates a new hub with the given name and GLTF/GLB/bundle URL.
   async createHubFromUrl(name, url) {
-    const payload = { hub: { name, default_environment_gltf_bundle_url: url || DEFAULT_BUNDLE_URL } };
+    const payload = { hub: { name, default_environment_gltf_bundle_url: url } };
     return this._request("POST", "hubs", payload);
   }
 

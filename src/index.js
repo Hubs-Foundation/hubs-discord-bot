@@ -676,26 +676,18 @@ async function start() {
           return discordCh.send("A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it.");
         }
 
-        if (args.length === 2) { // !hubs create
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(discordCh.name);
-          const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
-          if (await trySetTopic(discordCh, updatedTopic) != null) {
-            return reticulumClient.bindHub(hubId, discordCh.guild.id, discordCh.id);
-          }
-          return;
-        }
-
-        const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(args[2]) || {};
-        const name = args.length === 4 ? args[3] : (sceneSlug || discordCh.name);
+        const url = args.length > 2 ? args[2] : process.env.DEFAULT_SCENE_URL;
+        const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(url) || {};
+        const name = args.length > 3 ? args[3] : discordCh.name;
         const guildId = discordCh.guild.id;
-        if (sceneUrl) { // !hubs create [scene URL] [name]
+        if (sceneId) { // !hubs create [scene URL] [name]
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
             return reticulumClient.bindHub(hubId, guildId, discordCh.id);
           }
         } else { // !hubs create [environment URL] [name]
-          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, args[2]);
+          const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, url);
           const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
           if (await trySetTopic(discordCh, updatedTopic) != null) {
             return reticulumClient.bindHub(hubId, guildId, discordCh.id);
