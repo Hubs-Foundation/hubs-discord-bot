@@ -463,12 +463,16 @@ async function start() {
     console.info(ts(`Scan finished; ${nChannels} channel(s), ${nRooms} room(s), ${nGuilds} guild(s).`));
 
     for (const discordCh of textChannels) {
-      const pins = await discordCh.fetchPinnedMessages();
-      const notifications = pins.filter(msg => {
-        return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
-      });
-      for (const msg of notifications.values()) {
-        notificationManager.add(NotificationManager.parseTimestamp(msg), msg);
+      try {
+        const pins = await discordCh.fetchPinnedMessages();
+        const notifications = pins.filter(msg => {
+          return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
+        });
+        for (const msg of notifications.values()) {
+          notificationManager.add(NotificationManager.parseTimestamp(msg), msg);
+        }
+      } catch (e) {
+        console.error(ts(`Error loading notifications for Discord channel ${formatDiscordCh(discordCh)}:`), e);
       }
     }
     notificationManager.start();
