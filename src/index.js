@@ -683,7 +683,7 @@ async function start() {
         }
 
         const url = args.length > 2 ? args[2] : process.env.DEFAULT_SCENE_URL;
-        const { sceneUrl, sceneId, sceneSlug } = topicManager.matchScene(url) || {};
+        const { sceneId } = topicManager.matchScene(url) || {};
         const name = args.length > 3 ? args[3] : discordCh.name;
         const guildId = discordCh.guild.id;
         if (sceneId) { // !hubs create [scene URL] [name]
