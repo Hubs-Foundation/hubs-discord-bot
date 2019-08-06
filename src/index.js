@@ -22,6 +22,7 @@ const VERBOSE = (process.env.VERBOSE === "true");
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
+const ACTIVE_ICON = "🔸";
 const ACTIVE_WEBHOOKS = {}; // { discordChId: webhook }
 const DISABLED_EVENTS = [ // only bother to disable processing on relatively high-volume events
   "TYPING_START",
@@ -126,13 +127,16 @@ function serializeProfile(displayName, discordChannels) {
   };
 }
 
+// Returns the name of a Discord channel without the presence indicator included.
+function getChannelBaseName(annotatedName) {
+  return annotatedName.replace(new RegExp(`${ACTIVE_ICON}$`, "u"), "");
+}
+
 // Updates the names of the given channels to have or not have the presence icon at the end of it, depending on whether
 // anyone is in the room or not.
 async function updateChannelPresenceIcons(channels, active) {
-  const activeIcon = "🔸";
   for (const channel of channels) {
-    const cleanedName = channel.name.replace(new RegExp(`${activeIcon}$`, "u"), "");
-    const updatedName = active ? (cleanedName + activeIcon) : cleanedName;
+    const updatedName = active ? (getChannelBaseName(channel.name) + ACTIVE_ICON) : getChannelBaseName(channel.name);
     if (updatedName !== channel.name) {
       await channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
     }
@@ -684,7 +688,7 @@ async function start() {
 
         const url = args.length > 2 ? args[2] : process.env.DEFAULT_SCENE_URL;
         const { sceneId } = topicManager.matchScene(url) || {};
-        const name = args.length > 3 ? args[3] : discordCh.name;
+        const name = args.length > 3 ? args[3] : getChannelBaseName(discordCh.name);
         const guildId = discordCh.guild.id;
         if (sceneId) { // !hubs create [scene URL] [name]
           const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
