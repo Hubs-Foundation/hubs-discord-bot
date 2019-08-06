@@ -62,7 +62,7 @@ The bot requires several permissions in order to work:
 - "Send messages," "Read messages," and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
 - "Manage webhooks" is necessary in order for the bot to find and use a webhook for bridging chat.
 - "Manage channels" is necessary in order for the bot to set the channel topic and bridge chat. **Note:** We do not ask for this permission globally when you add the bot to your server, instead we recommend you grant this permission to the bot in specific groups or channels.
-- "Manage messages" is necessary in order for the bot to pin notification messages. Like "manage channels", you should probably grant this for specific groups and channels.
+- "Manage messages" and "read message history" are necessary in order for the bot to pin notification messages. Like "manage channels", you should probably grant these for specific groups and channels.
 
 You can and should assign these on a channel-by-channel basis to the bot role after adding the bot to your guild.
 
