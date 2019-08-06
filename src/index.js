@@ -255,7 +255,13 @@ async function establishBridging(hubState, bridges) {
       if (VERBOSE) {
         console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
       }
-      discordCh.send(`${whom} changed the scene in ${hubState.shortUrl} to ${scene.name}.`);
+      if (scene) {
+        discordCh.send(`${whom} changed the scene in ${hubState.shortUrl} to ${scene.name}.`);
+      } else {
+        // the API response has a totally convoluted structure we could use to dig up the scene URL in theory,
+        // but it doesn't seem worth reproducing the dozen lines of hubs code that does this here
+        discordCh.send(`${whom} changed ${hubState.shortUrl} to a new scene.`);
+      }
     }
   });
   reticulumCh.on('renamehub', (timestamp, id, whom, name, slug) => {
