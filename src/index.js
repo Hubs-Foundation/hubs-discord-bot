@@ -493,8 +493,8 @@ async function start() {
       console.debug(ts(`Sending notification in channel ${formatDiscordCh(msg.channel)}`));
     }
     const hubState = bridges.getHub(msg.channel.id);
-    const description = hubState != null ? `the Hubs room at ${hubState.shortUrl}` : "a Hubs room";
-    await msg.channel.send(`@here Hey! You should join ${description}.`, { disableEveryone: false });
+    const description = hubState != null ? `the Hubs room: ${hubState.shortUrl}` : "a Hubs room.";
+    await msg.channel.send(`@here Hey! You should join ${description}`, { disableEveryone: false });
     await msg.unpin();
   });
 
