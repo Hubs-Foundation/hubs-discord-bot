@@ -7,7 +7,7 @@ pkg_description="Discord bot for Hubs by Mozilla"
 
 pkg_deps=(
   core/coreutils
-  core/node/11.2.0
+  core/node/12.9.0
 )
 
 pkg_build_deps=(
