@@ -185,7 +185,7 @@ async function tryPin(discordCh, message) {
     if (!(e instanceof discord.DiscordAPIError)) {
       throw e;
     } else {
-      message.edit("Sorry, but you'll need to give me \"manage messages\" permission, or else I won't be able to pin messages for notifications.");
+      message.edit("Sorry, but you'll need to give me \"manage messages\" and \"read message history\" permissions, or else I won't be able to pin messages for notifications.");
       return null;
     }
   }
@@ -477,7 +477,11 @@ async function start() {
         // evaluate permissions as a kind of short-circuiting because asking for pinned messages is slow
         // and it sucks to have to do it on literally every random channel in a server that the bot can read
         const perms = discordCh.permissionsFor(discordClient.user);
-        if (perms.has(discord.Permissions.FLAGS.MANAGE_MESSAGES)) {
+        if (perms.has([
+          discord.Permissions.FLAGS.MANAGE_MESSAGES,
+          discord.Permissions.FLAGS.READ_MESSAGES,
+          discord.Permissions.FLAGS.READ_MESSAGE_HISTORY
+        ])) {
           const pins = await discordCh.fetchPinnedMessages();
           const notifications = pins.filter(msg => {
             return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
