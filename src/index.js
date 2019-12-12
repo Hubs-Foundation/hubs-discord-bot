@@ -71,6 +71,8 @@ class DiscordEventQueue {
 
 }
 
+const q = new DiscordEventQueue();
+
 // Prepends a timestamp to a string.
 function ts(str) {
   return `[${new Date().toISOString()}] ${str}`;
@@ -332,7 +334,7 @@ async function establishBridging(hubState, bridges) {
   await updateChannelPresenceIcons(bridges.getChannels(hubState.id).values(), reticulumCh.getUserCount() > 0);
 }
 
-function scheduleSummaryPosting(bridges, queue) {
+function scheduleSummaryPosting(bridges) {
   // only enable on hubs discord and test server until we're sure we like this
   const whitelistedGuilds = new Set(["525537221764317195", "498741086295031808"]);
   const rule = new schedule.RecurrenceRule(null, null, null, null, null, 0, 0);
@@ -342,7 +344,7 @@ function scheduleSummaryPosting(bridges, queue) {
     if (end.hour() !== 0) { // only post once, at midnight local time
       return;
     }
-    queue.enqueue(async () => {
+    q.enqueue(async () => {
       const when = start.format("LL");
       const startTs = start.valueOf();
       const endTs = end.valueOf();
@@ -445,7 +447,6 @@ async function start() {
   const bridges = new Bridges();
   const notificationManager = new NotificationManager();
   const topicManager = new TopicManager(HOSTNAMES);
-  const q = new DiscordEventQueue();
 
   scheduleSummaryPosting(bridges, q);
 
