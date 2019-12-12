@@ -669,7 +669,7 @@ async function start() {
               `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
               `🦆 ${activeWebhook ? `Bridging chat using the webhook "${activeWebhook.name}" (${activeWebhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
               `🦆 Connected since ${moment(hubState.ts).format("LLLL z")}.\n` +
-              `🦆 There are ${userCount} users in the room.`
+              `🦆 There ${userCount == 1 ? "is 1 user" : `are ${userCount} users`} in the room.`
           );
         } else {
           return discordCh.send(
