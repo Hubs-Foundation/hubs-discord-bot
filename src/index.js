@@ -139,9 +139,12 @@ function getChannelBaseName(annotatedName) {
 async function updateChannelPresenceIcons(channels, active) {
   for (const channel of channels) {
     const updatedName = active ? (getChannelBaseName(channel.name) + ACTIVE_ICON) : getChannelBaseName(channel.name);
-    if (updatedName !== channel.name) {
-      await channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
-    }
+    // disabled as an attempted hack. this check is a kind of obvious culprit for the "orange diamond" bug, because it
+    // relies on the discord channel cache having the right name. it's a shame to not do it, because it means we're
+    // hitting the discord API for no reason, but our scale isn't high enough that it really matters.
+    // if (updatedName !== channel.name) {
+    await channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
+    // }
   }
 }
 
