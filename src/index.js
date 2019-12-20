@@ -71,6 +71,8 @@ class DiscordEventQueue {
 
 }
 
+const q = new DiscordEventQueue();
+
 // Prepends a timestamp to a string.
 function ts(str) {
   return `[${new Date().toISOString()}] ${str}`;
@@ -137,9 +139,12 @@ function getChannelBaseName(annotatedName) {
 async function updateChannelPresenceIcons(channels, active) {
   for (const channel of channels) {
     const updatedName = active ? (getChannelBaseName(channel.name) + ACTIVE_ICON) : getChannelBaseName(channel.name);
-    if (updatedName !== channel.name) {
-      await channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
-    }
+    // disabled as an attempted hack. this check is a kind of obvious culprit for the "orange diamond" bug, because it
+    // relies on the discord channel cache having the right name. it's a shame to not do it, because it means we're
+    // hitting the discord API for no reason, but our scale isn't high enough that it really matters.
+    // if (updatedName !== channel.name) {
+    await channel.setName(updatedName, `Hubs room became ${active ? "active" : "inactive"}.`);
+    // }
   }
 }
 
@@ -332,7 +337,7 @@ async function establishBridging(hubState, bridges) {
   await updateChannelPresenceIcons(bridges.getChannels(hubState.id).values(), reticulumCh.getUserCount() > 0);
 }
 
-function scheduleSummaryPosting(bridges, queue) {
+function scheduleSummaryPosting(bridges) {
   // only enable on hubs discord and test server until we're sure we like this
   const whitelistedGuilds = new Set(["525537221764317195", "498741086295031808"]);
   const rule = new schedule.RecurrenceRule(null, null, null, null, null, 0, 0);
@@ -342,7 +347,7 @@ function scheduleSummaryPosting(bridges, queue) {
     if (end.hour() !== 0) { // only post once, at midnight local time
       return;
     }
-    queue.enqueue(async () => {
+    q.enqueue(async () => {
       const when = start.format("LL");
       const startTs = start.valueOf();
       const endTs = end.valueOf();
@@ -445,7 +450,6 @@ async function start() {
   const bridges = new Bridges();
   const notificationManager = new NotificationManager();
   const topicManager = new TopicManager(HOSTNAMES);
-  const q = new DiscordEventQueue();
 
   scheduleSummaryPosting(bridges, q);
 
@@ -669,7 +673,7 @@ async function start() {
               `🦆 <#${discordCh.id}> bridged to Hubs room "${hubState.name}" (${hubState.id}) at <${hubState.url}>.\n` +
               `🦆 ${activeWebhook ? `Bridging chat using the webhook "${activeWebhook.name}" (${activeWebhook.id}).` : "No webhook configured. Add a channel webhook to bridge chat to Hubs."}\n` +
               `🦆 Connected since ${moment(hubState.ts).format("LLLL z")}.\n` +
-              `🦆 There are ${userCount} users in the room.`
+              `🦆 There ${userCount == 1 ? "is 1 user" : `are ${userCount} users`} in the room.`
           );
         } else {
           return discordCh.send(
@@ -778,6 +782,21 @@ async function start() {
             notificationManager.add(when, msg);
           }
         }
+      }
+
+      case "kill": {
+        // todo: probably make this configurable
+        const WHITELISTED_USERS = [
+          "339914448032497664", // gfodor
+          "544406895889350676", // elgin
+          "407386567305330688", // liv
+          "146595594155196416" // mqp
+        ];
+        if (!WHITELISTED_USERS.includes(msg.author.id)) {
+          return discordCh.send("You are not powerful enough to kill the bot.");
+        }
+        await discordCh.send("Goodbye, cruel world!");
+        process.exit(0);
       }
 
       }
