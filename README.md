@@ -8,12 +8,12 @@
 
 A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
-* [What it does](#what-it-does)
-  * [Room/channel permissions linkage](#room-channel-permissions-linkage)
-  * [Room/channel bridging](#room-channel-bridging)
-* [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
-* [Permissions](#permissions)
-* [Hacking on it](#hacking-on-it)
+- [What it does](#what-it-does)
+  - [Room/channel permissions linkage](#room-channel-permissions-linkage)
+  - [Room/channel bridging](#room-channel-bridging)
+- [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
+- [Permissions](#permissions)
+- [Hacking on it](#hacking-on-it)
 
 ## What it does
 
@@ -36,7 +36,7 @@ Independently of being permission-linked, the bot will detect any Hubs rooms in 
 - A notification will appear in the Discord channel when someone joins or leaves the Hubs room, or if administrative stuff happens in the Hubs room.
 - Text chat and images will be bridged from the Discord channel into the Hubs room.
 - Text chat and photos will be bridged from the Hubs room into the Discord channel.
-- Links to media (images, videos, models) which are *pinned* in the Hubs room will be bridged to Discord.
+- Links to media (images, videos, models) which are _pinned_ in the Hubs room will be bridged to Discord.
 
 Note that you need to set up a webhook for the bot to use in the Discord channel, or it won't be able to post chat from Hubs.
 
@@ -80,11 +80,13 @@ To simply run the bot process:
 
 4. [Create a Discord bot on the Discord website.][discord-docs]
 
-5. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
+5. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. Set `IS_RUNNING_LOCALLY` to true and your `RETICULUM_HOST={your server}` should point to 'hubs.local:4000'. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
 
-6. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
+6. Inside your local reticulum instance in reticulum/config/dev.exs change the configuration for `Ret.DiscordClient` to point to your bot's: `client_id`, `client_secret`, and `bot_token` found inside your discord bot.
 
-7. [Follow the instructions above](#usage) to set up and use the bot on your Discord guild.
+7. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
+
+8. [Follow the instructions above](#usage) to set up and use the bot on your Discord guild.
 
 [npm]: https://nodejs.org/en/
 [discord-docs]: https://discordapp.com/developers/docs/intro

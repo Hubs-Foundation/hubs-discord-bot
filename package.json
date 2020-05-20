@@ -6,6 +6,10 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "discord-dev": "nodemon src/run-discord-bot.js",
+    "discord-prod": "node src/run-discord-bot.js",
+    "slack-dev": "nodemon src/run-slack-bot.js",
+    "slack-prod": "node src/run-slack-bot.js",
     "lint": "eslint src",
     "test": "tape tests/*.js"
   },
@@ -18,6 +22,7 @@
     "node": ">=8.0.0"
   },
   "dependencies": {
+    "@slack/bolt": "^2.0.1",
     "bufferutil": "^4.0.1",
     "discord.js": "^11.5.1",
     "dotenv": "^8.2.0",
