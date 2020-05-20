@@ -93,3 +93,32 @@ To simply run the bot process:
 [invite-page]: https://hubs.mozilla.com/discord
 [hubs-discord]: https://discord.gg/wHmY4nd
 [bot-invite]: mailto:hubs@mozilla.com
+
+// missing notes on getting discord bot up and running
+Return uri for oauth needs to be `https://hubs.local:4000/api/v1/oauth/discord`
+scopes
+bot
+Bot permissions: manage channels, etc. look at docs but they've changed.
+reticulum host
+hubs.local:4000
+
+for setup on hubs cloud:
+/hab/svc/reticulum/config/config.toml for the RETICULUM_BOT_ACCESS_KEY
+Need to add hostname of reticulum backend -- likely your internal url
+
+What is statsd?
+
+Improve dev environment setup instructions.
+
+
+### Slackbot
+
+Setup npm ci
+Create a new App via https://api.slack.com/apps
+Get the Slack Bot Token and the SLACK_SIGNING_SECRET and enter those into a .env file.
+
+Setup your bot dev environment.
+nodemon
+use ngrok for getting the port available for slack bot to read from.
+https://api.slack.com/tutorials/tunneling-with-ngrok
+https://slack.dev/bolt-js/tutorial/getting-started

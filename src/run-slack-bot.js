@@ -8,6 +8,9 @@ const app = new App({
 });
 
 app.command("/hubs", async ({ ack, payload, context }) => {
+  // Acknowledge command
+  ack();
+
   console.log("hello");
   console.log("payload text");
   // console.log(payload)
