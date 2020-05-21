@@ -2,53 +2,123 @@
 const { App } = require("@slack/bolt");
 require("dotenv").config();
 
+const SLACK_BOT_API_BASE_URL = "https://slack.com/api/";
+// https://api.slack.com/docs/conversations-api
+const SLACK_SET_TOPIC = "conversations.setTopic";
+const SLACK_GET_CHANNEL_LIST = "conversations.list";
+const SLACK_GET_CHANNEL_INFO = "conversations.info";
+const SLACK_RENAME_CHANNEL = "conversations.rename";
+
+function getChannelName(channelInfo) {
+  return channelInfo.name;
+}
+function getChannelTopic(channelInfo) {
+  return channelInfo.topic.value;
+}
+async function getChannelList() {}
+
+async function sendMessage() {}
+
+async function changeChannelTopic() {}
+
+async function changeChannelName() {}
+
+// https://api.slack.com/events-api#subscriptions
+// Choosing event subscriptions in your app
+// channels_rename
+// Events dispatched as JSON
+// Get a POST request to your request URL
+// API Event types https://api.slack.com/events
+
+// slash commands must enable it on the bot level
+// Create new Command
+
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
+async function start() {}
+
 app.command("/hubs", async ({ ack, payload, context }) => {
   // Acknowledge command
   ack();
 
+  const channelId = payload.channel_id;
+  const channelName = payload.channel_name;
+  const userId = payload.user_id;
+  const userName = payload.user_name;
+
+  const command = payload.text ? payload.text.split(" ")[0] : undefined;
+  const argumentList = payload.text ? payload.text.split(" ").slice(1) : [];
+
+  switch (payload.text) {
+    case undefined:
+      // Shows general information about the Hubs integration with the current Discord channel
+      await app.client.chat.postMessage({
+        token: context.botToken,
+        channel: channelId,
+        // Text in the notification
+        text: "Message from Test App"
+      });
+      break;
+    case "help":
+      // Shows text needed
+      break;
+    case "create":
+      // handle optional arguments too
+      await app.client.chat.postMessage({
+        token: context.botToken,
+        channel: channelId,
+        // Text in the notification
+        text: "Create room"
+      });
+      break;
+    default:
+      await app.client.chat.postMessage({
+        token: context.botToken,
+        channel: channelId,
+        // Text in the notification
+        text: "Message from Test App"
+      });
+  }
+
   console.log("hello");
   console.log("payload text");
-  // console.log(payload)
   console.log(payload.text ? payload.text : "NO PAYLOAD TEXT ADDED");
-  // console.log('context')
-  // console.log(context)
-  ack();
+  console.log("context");
+  console.log(context);
 
-  try {
-    const result = await app.client.chat.postMessage({
-      token: context.botToken,
-      // Channel to send message to
-      channel: payload.channel_id,
-      // Include a button in the message (or whatever blocks you want!)
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: "Go ahead.!!! Click it."
-          },
-          accessory: {
-            type: "button",
-            text: {
-              type: "plain_text",
-              text: "Click me!!!!"
-            },
-            action_id: "button_abc"
-          }
-        }
-      ],
-      // Text in the notification
-      text: "Message from Test App"
-    });
-    console.log(result);
-  } catch (error) {
-    console.error(error);
-  }
+  // try {
+  //   const result = await app.client.chat.postMessage({
+  //     token: context.botToken,
+  //     // Channel to send message to
+  //     channel: payload.channel_id,
+  //     // Include a button in the message (or whatever blocks you want!)
+  //     blocks: [
+  //       {
+  //         type: "section",
+  //         text: {
+  //           type: "mrkdwn",
+  //           text: "Go ahead.!!! Click it."
+  //         },
+  //         accessory: {
+  //           type: "button",
+  //           text: {
+  //             type: "plain_text",
+  //             text: "Click me!!!!"
+  //           },
+  //           action_id: "button_abc"
+  //         }
+  //       }
+  //     ],
+  //     // Text in the notification
+  //     text: "Message from Test App"
+  //   });
+  //   console.log(result);
+  // } catch (error) {
+  //   console.error(error);
+  // }
 });
 
 // console.log(app)

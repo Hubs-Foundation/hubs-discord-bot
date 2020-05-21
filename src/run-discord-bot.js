@@ -1,4 +1,3 @@
-console.log("inside index.js");
 // Variables in .env and .env.defaults will be added to process.env
 const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
@@ -14,7 +13,8 @@ const { NotificationManager } = require("./notifications.js");
 const { HubStats } = require("./hub-stats.js");
 const { PresenceRollups } = require("./presence-rollups.js");
 const { StatsdClient } = require("./statsd-client.js");
-const { ts, DUCK_AVATAR } = require("./text-helpers.js");
+const { ts, DUCK_AVATAR, formatRename, formatList, formatStats } = require("./text-helpers.js");
+const { BotEventQueue } = require("./helpers.js");
 
 // someday we will probably have different locales and timezones per server
 moment.tz.setDefault(process.env.TIMEZONE);
@@ -42,37 +42,7 @@ if (statsdHost) {
   console.info(ts(`Sending metrics to statsd @ ${statsdHost}.`));
 }
 
-// Serializes invocations of the tasks in the queue. Used to ensure that we completely finish processing
-// a single Discord event before processing the next one, e.g. we don't interleave work from a user command
-// and from a channel topic update, or from two channel topic updates in quick succession.
-class DiscordEventQueue {
-  constructor() {
-    this.size = 0;
-    this.curr = Promise.resolve();
-    this._onSizeChanged();
-  }
-
-  _onSizeChanged() {
-    if (statsdClient != null) {
-      statsdClient.send("discord.queuesize", this.size, "g");
-    }
-  }
-
-  // Enqueues the given function to run as soon as no other functions are currently running.
-  enqueue(fn) {
-    this.size += 1;
-    this._onSizeChanged();
-    return (this.curr = this.curr
-      .then(_ => fn())
-      .catch(e => console.error(ts(e.stack)))
-      .finally(() => {
-        this.size -= 1;
-        this._onSizeChanged();
-      }));
-  }
-}
-
-const q = new DiscordEventQueue();
+const q = new BotEventQueue(statsdClient);
 
 // Formats a Discord channel reference, displaying the guild, channel name, and ID.
 function formatDiscordCh(discordCh) {
@@ -82,37 +52,6 @@ function formatDiscordCh(discordCh) {
     return `${discordCh.guild.id}/${discordCh.id}`;
   } else {
     return discordCh.id;
-  }
-}
-
-// Formats user activity statistics for a hub.
-function formatStats(stats, where, when) {
-  const header = when != null ? `Hubs activity in <${where}> for ${when}:\n` : `Hubs activity in <${where}>:\n`;
-  const peakTimeDescription = stats.peakTime == null ? "N/A" : moment(stats.peakTime).format("LTS z");
-  return (
-    header +
-    "```\n" +
-    `Room joins: ${stats.arrivals}\n` +
-    `Peak user count: ${stats.peakCcu}\n` +
-    `Peak time: ${peakTimeDescription}\n` +
-    "```"
-  );
-}
-
-// Formats a message indicating that the user formerly known as `prev` is now known as `curr`.
-function formatRename(user) {
-  return `**${user.prevName}** changed their name to **${user.name}**.`;
-}
-
-// Formats a message of the form "Alice, Bob, and Charlie".
-function formatList(users) {
-  if (users.length === 1) {
-    return `**${users[0].name}**`;
-  } else {
-    return `**${users
-      .slice(0, -1)
-      .map(u => u.name)
-      .join(", ")}** and **${users[users.length - 1].name}**`;
   }
 }
 
@@ -427,8 +366,12 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
+function getTopic (channel) {
+  return channel.topic
+}
+
 // Returns a mapping of { (host, hubId): [discord channels] } for Hubs bridges in the given channels.
-function findBridges(topicManager, channels) {
+function findBridges(topicManager, getTopic, channels) {
   const result = new Map();
   for (const discordCh of channels) {
     const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
@@ -460,6 +403,15 @@ function getBridgeStats(bridges) {
   };
 }
 
+function setupReticulumClient() {
+  const reticulumHost = process.env.RETICULUM_HOST;
+  const reticulumClient = new ReticulumClient(reticulumHost);
+  await reticulumClient.connect();
+  console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
+  return reticulumClient
+}
+
+
 async function start() {
   const shardId = parseInt(process.env.SHARD_ID, 10);
   const shardCount = parseInt(process.env.SHARD_COUNT, 10);
@@ -470,16 +422,11 @@ async function start() {
     disabledEvents: DISABLED_EVENTS,
     disableEveryone: true
   });
-  console.log(1);
 
   await connectToDiscord(discordClient, process.env.DISCORD_BOT_TOKEN);
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
-  console.log(2);
 
-  const reticulumHost = process.env.RETICULUM_HOST;
-  const reticulumClient = new ReticulumClient(reticulumHost);
-  await reticulumClient.connect();
-  console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
+  const reticulumClient = setupReticulumClient()
 
   const connectedHubs = {}; // { hubId: hubState }
   const bridges = new Bridges();
@@ -490,9 +437,13 @@ async function start() {
 
   // one-time scan through all channels to look for existing bridges
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
+
+  function scanAndFindExistingChannelBridges(channelsList, topicManager, formatChannel, type) {
+
+  }
   {
     const textChannels = Array.from(discordClient.channels.filter(ch => ch.type === "text").values());
-    const candidateBridges = findBridges(topicManager, textChannels);
+    const candidateBridges = findBridges(topicManager, getTopic, textChannels);
 
     for (const [key, channels] of candidateBridges.entries()) {
       const [host, hubId] = key.split(" ", 2);
