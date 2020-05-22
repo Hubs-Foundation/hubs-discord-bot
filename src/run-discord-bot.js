@@ -366,7 +366,7 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
-function getTopic (channel) {
+function getTopic(channel) {
   return channel.topic
 }
 

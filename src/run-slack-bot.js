@@ -2,6 +2,12 @@
 const { App } = require("@slack/bolt");
 require("dotenv").config();
 
+const request = require("request");
+
+const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
+const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
+const ACTIVE_ICON = "🔸";
+
 const SLACK_BOT_API_BASE_URL = "https://slack.com/api/";
 // https://api.slack.com/docs/conversations-api
 const SLACK_SET_TOPIC = "conversations.setTopic";
@@ -15,13 +21,26 @@ function getChannelName(channelInfo) {
 function getChannelTopic(channelInfo) {
   return channelInfo.topic.value;
 }
-async function getChannelList() {}
+async function getChannelList() {
+  let r = await request.get(
+    SLACK_BOT_API_BASE_URL + SLACK_GET_CHANNEL_LIST,
+    (params = {
+      token: process.env.SLACK_BOT_TOKEN
+    })
+  );
+  console.log(r);
+  console.log(r.data);
+  console.log(r.json());
+  return r.channels;
+}
 
 async function sendMessage() {}
 
 async function changeChannelTopic() {}
 
 async function changeChannelName() {}
+
+function formatChannel() {}
 
 // https://api.slack.com/events-api#subscriptions
 // Choosing event subscriptions in your app
@@ -33,12 +52,33 @@ async function changeChannelName() {}
 // slash commands must enable it on the bot level
 // Create new Command
 
+// var axios = require('axios');
+// axios.all([
+//   axios.get('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=2017-08-03'),
+//   axios.get('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=2017-08-02')
+// ]).then(axios.spread((response1, response2) => {
+//   console.log(response1.data.url);
+//   console.log(response2.data.url);
+// })).catch(error => {
+//   console.log(error);
+// });
+
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
-async function start() {}
+function searchForChannelTopicsAndHubHosts() {}
+
+async function start() {
+  const reticulumHost = setupReticulumClient();
+  const connectedHubs = {}; // { hubId: hubState }
+  const bridges = new Bridges();
+  const notificationManager = new NotificationManager();
+  const topicManager = new TopicManager(HOSTNAMES);
+}
+
+function setup() {}
 
 app.command("/hubs", async ({ ack, payload, context }) => {
   // Acknowledge command
@@ -55,6 +95,7 @@ app.command("/hubs", async ({ ack, payload, context }) => {
   switch (payload.text) {
     case undefined:
       // Shows general information about the Hubs integration with the current Discord channel
+      await getChannelList();
       await app.client.chat.postMessage({
         token: context.botToken,
         channel: channelId,
@@ -75,6 +116,7 @@ app.command("/hubs", async ({ ack, payload, context }) => {
       });
       break;
     default:
+      await getChannelList();
       await app.client.chat.postMessage({
         token: context.botToken,
         channel: channelId,
