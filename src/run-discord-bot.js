@@ -367,7 +367,7 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
 }
 
 function getTopic(channel) {
-  return channel.topic
+  return channel.topic;
 }
 
 // Returns a mapping of { (host, hubId): [discord channels] } for Hubs bridges in the given channels.
@@ -403,14 +403,13 @@ function getBridgeStats(bridges) {
   };
 }
 
-function setupReticulumClient() {
+async function setupReticulumClient() {
   const reticulumHost = process.env.RETICULUM_HOST;
   const reticulumClient = new ReticulumClient(reticulumHost);
   await reticulumClient.connect();
   console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
-  return reticulumClient
+  return reticulumClient;
 }
-
 
 async function start() {
   const shardId = parseInt(process.env.SHARD_ID, 10);
@@ -426,7 +425,7 @@ async function start() {
   await connectToDiscord(discordClient, process.env.DISCORD_BOT_TOKEN);
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
 
-  const reticulumClient = setupReticulumClient()
+  const reticulumClient = await setupReticulumClient();
 
   const connectedHubs = {}; // { hubId: hubState }
   const bridges = new Bridges();
@@ -437,10 +436,6 @@ async function start() {
 
   // one-time scan through all channels to look for existing bridges
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
-
-  function scanAndFindExistingChannelBridges(channelsList, topicManager, formatChannel, type) {
-
-  }
   {
     const textChannels = Array.from(discordClient.channels.filter(ch => ch.type === "text").values());
     const candidateBridges = findBridges(topicManager, getTopic, textChannels);

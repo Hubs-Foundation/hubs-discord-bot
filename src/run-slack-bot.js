@@ -2,7 +2,7 @@
 const { App } = require("@slack/bolt");
 require("dotenv").config();
 
-const request = require("request");
+const request = require("request-promise");
 
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
@@ -22,16 +22,36 @@ function getChannelTopic(channelInfo) {
   return channelInfo.topic.value;
 }
 async function getChannelList() {
-  let r = await request.get(
-    SLACK_BOT_API_BASE_URL + SLACK_GET_CHANNEL_LIST,
-    (params = {
+  // {
+  //     "ok": false,
+  //     "error": "missing_scope",
+  //     "needed": "channels:read,groups:read,mpim:read,im:read",
+  //     "provided": "app_mentions:read,chat:write,commands"
+  // }
+  try {
+    // Call the conversations.list method using the built-in WebClient
+    const result = await app.client.conversations.list({
+      // The token you used to initialize your app
       token: process.env.SLACK_BOT_TOKEN
-    })
-  );
-  console.log(r);
-  console.log(r.data);
-  console.log(r.json());
-  return r.channels;
+    });
+
+    saveConversations(result.channels);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Put conversations into the JavaScript object
+const conversationsStore = {};
+function saveConversations(conversationsArray) {
+  let conversationId = "";
+  conversationsArray.forEach(function(conversation) {
+    // Key conversation info on its unique ID
+    conversationId = conversation.id;
+
+    // Store the entire conversation object (you may not need all of the info)
+    conversationsStore[conversationId] = conversation;
+  });
 }
 
 async function sendMessage() {}
@@ -51,17 +71,6 @@ function formatChannel() {}
 
 // slash commands must enable it on the bot level
 // Create new Command
-
-// var axios = require('axios');
-// axios.all([
-//   axios.get('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=2017-08-03'),
-//   axios.get('https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY&date=2017-08-02')
-// ]).then(axios.spread((response1, response2) => {
-//   console.log(response1.data.url);
-//   console.log(response2.data.url);
-// })).catch(error => {
-//   console.log(error);
-// });
 
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
@@ -95,7 +104,6 @@ app.command("/hubs", async ({ ack, payload, context }) => {
   switch (payload.text) {
     case undefined:
       // Shows general information about the Hubs integration with the current Discord channel
-      await getChannelList();
       await app.client.chat.postMessage({
         token: context.botToken,
         channel: channelId,
@@ -130,201 +138,6 @@ app.command("/hubs", async ({ ack, payload, context }) => {
   console.log(payload.text ? payload.text : "NO PAYLOAD TEXT ADDED");
   console.log("context");
   console.log(context);
-
-  // try {
-  //   const result = await app.client.chat.postMessage({
-  //     token: context.botToken,
-  //     // Channel to send message to
-  //     channel: payload.channel_id,
-  //     // Include a button in the message (or whatever blocks you want!)
-  //     blocks: [
-  //       {
-  //         type: "section",
-  //         text: {
-  //           type: "mrkdwn",
-  //           text: "Go ahead.!!! Click it."
-  //         },
-  //         accessory: {
-  //           type: "button",
-  //           text: {
-  //             type: "plain_text",
-  //             text: "Click me!!!!"
-  //           },
-  //           action_id: "button_abc"
-  //         }
-  //       }
-  //     ],
-  //     // Text in the notification
-  //     text: "Message from Test App"
-  //   });
-  //   console.log(result);
-  // } catch (error) {
-  //   console.error(error);
-  // }
-});
-
-// console.log(app)
-
-// // Listens to incoming messages that contain "hello"
-// app.message('hello', async ({ message, say }) => {
-//   // say() sends a message to the channel where the event was triggered
-//   await say({
-//     blocks: [
-//       {
-//         type: 'section',
-//         text: {
-//           type: 'mrkdwn',
-//           text: `Hey there <@${message.user}>!`
-//         },
-//         accessory: {
-//           type: 'button',
-//           text: {
-//             type: 'plain_text',
-//             text: 'Click Me'
-//           },
-//           action_id: 'button_click'
-//         }
-//       }
-//     ]
-//   })
-// })
-
-// app.action('button_click', async ({ body, ack, say }) => {
-//   // Acknowledge the action
-//   await ack()
-//   await say(`<@${body.user.id}> clicked the button`)
-// })
-
-// app.event('app_home_opened', async ({ event, context }) => {
-//   try {
-//     /* view.publish is the method that your app uses to push a view to the Home tab */
-//     const result = await app.client.views.publish({
-//       /* retrieves your xoxb token from context */
-//       token: context.botToken,
-
-//       /* the user that opened your app's app home */
-//       user_id: event.user,
-
-//       /* the view payload that appears in the app home*/
-//       view: {
-//         type: 'home',
-//         callback_id: 'home_view',
-
-//         /* body of the view */
-//         blocks: [
-//           {
-//             type: 'section',
-//             text: {
-//               type: 'mrkdwn',
-//               text: "*Welcome to your _App's Home_* :tada:"
-//             }
-//           },
-//           {
-//             type: 'divider'
-//           },
-//           {
-//             type: 'section',
-//             text: {
-//               type: 'mrkdwn',
-//               text:
-//                 "This button won't do much for now but you can set up a listener for it using the `actions()` method and passing its unique `action_id`. See an example in the `examples` folder within your Bolt app."
-//             }
-//           },
-//           {
-//             type: 'actions',
-//             elements: [
-//               {
-//                 type: 'button',
-//                 text: {
-//                   type: 'plain_text',
-//                   text: 'Click me!'
-//                 }
-//               }
-//             ]
-//           }
-//         ]
-//       }
-//     })
-//   } catch (error) {
-//     console.error(error)
-//   }
-// })
-
-// Listen for a slash command invocation
-// https://api.slack.com/app
-// Inside your slack bot
-// Features > "Slash Commands" >
-app.command("/helloworld", async ({ ack, payload, context }) => {
-  console.log("hello");
-  console.log("payload text");
-  // console.log(payload)
-  console.log(payload.text ? payload.text : "NO PAYLOAD TEXT ADDED");
-  // console.log('context')
-  // console.log(context)
-  // Acknowledge the command request
-  ack();
-
-  try {
-    const result = await app.client.chat.postMessage({
-      token: context.botToken,
-      // Channel to send message to
-      channel: payload.channel_id,
-      // Include a button in the message (or whatever blocks you want!)
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: "Go ahead.!!! Click it."
-          },
-          accessory: {
-            type: "button",
-            text: {
-              type: "plain_text",
-              text: "Click me!!!!"
-            },
-            action_id: "button_abc"
-          }
-        }
-      ],
-      // Text in the notification
-      text: "Message from Test App"
-    });
-    console.log(result);
-  } catch (error) {
-    console.error(error);
-  }
-});
-
-// Listen for a button invocation with action_id `button_abc`
-// You must set up a Request URL under Interactive Components on your app configuration page
-app.action("button_abc", async ({ ack, body, context }) => {
-  // Acknowledge the button request
-  ack();
-
-  try {
-    // Update the message
-    const result = await app.client.chat.update({
-      token: context.botToken,
-      // ts of message to update
-      ts: body.message.ts,
-      // Channel of message
-      channel: body.channel.id,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: "*The button was clicked!*"
-          }
-        }
-      ],
-      text: "Message from Test App"
-    });
-    console.log(result);
-  } catch (error) {
-    console.error(error);
-  }
 });
 (async () => {
   // Start your app
@@ -332,15 +145,3 @@ app.action("button_abc", async ({ ack, body, context }) => {
 
   console.log("⚡️ Bolt app is running! on port:" + 3000);
 })();
-
-// function handleRequest(request, response) {
-//   response.end('Ngrok is working! -  Path Hit: ' + request.url)
-// }
-
-// // We create the web server object calling the createServer function. Passing our request function onto createServer guarantees the function is called once for every HTTP request that's made against the server
-// var server = http.createServer(handleRequest)
-
-// server.listen(PORT, function() {
-//   // Callback triggered when server is successfully listening. Hurray!
-//   console.log('Server listening on: http://localhost:%s', PORT)
-// })
