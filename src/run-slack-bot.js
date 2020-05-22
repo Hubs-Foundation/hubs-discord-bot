@@ -2,7 +2,18 @@
 const { App } = require("@slack/bolt");
 require("dotenv").config();
 
-const request = require("request-promise");
+const moment = require("moment-timezone");
+const discord = require("discord.js");
+const schedule = require("node-schedule");
+const { Bridges, HubState } = require("./bridges.js");
+const { ReticulumClient } = require("./reticulum.js");
+const { TopicManager } = require("./topic.js");
+const { NotificationManager } = require("./notifications.js");
+const { HubStats } = require("./hub-stats.js");
+const { PresenceRollups } = require("./presence-rollups.js");
+const { StatsdClient } = require("./statsd-client.js");
+const { ts, DUCK_AVATAR, formatRename, formatList, formatStats } = require("./text-helpers.js");
+const { BotEventQueue } = require("./helpers.js");
 
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
@@ -22,20 +33,14 @@ function getChannelTopic(channelInfo) {
   return channelInfo.topic.value;
 }
 async function getChannelList() {
-  // {
-  //     "ok": false,
-  //     "error": "missing_scope",
-  //     "needed": "channels:read,groups:read,mpim:read,im:read",
-  //     "provided": "app_mentions:read,chat:write,commands"
-  // }
+  // permissions "needed": "channels:read,groups:read,mpim:read,im:read"
   try {
     // Call the conversations.list method using the built-in WebClient
     const result = await app.client.conversations.list({
       // The token you used to initialize your app
       token: process.env.SLACK_BOT_TOKEN
     });
-
-    saveConversations(result.channels);
+    return result.channels;
   } catch (error) {
     console.error(error);
   }
@@ -48,7 +53,6 @@ function saveConversations(conversationsArray) {
   conversationsArray.forEach(function(conversation) {
     // Key conversation info on its unique ID
     conversationId = conversation.id;
-
     // Store the entire conversation object (you may not need all of the info)
     conversationsStore[conversationId] = conversation;
   });
@@ -56,9 +60,32 @@ function saveConversations(conversationsArray) {
 
 async function sendMessage() {}
 
-async function changeChannelTopic() {}
+async function changeChannelTopic(channelId, newTopic) {
+  // permissions "needed": "channels:write,groups:write,mpim:write,im:write",
+  try {
+    const result = await app.client.conversations.setTopic({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: channelId,
+      topic: newTopic
+    });
+    return result.channel; // channelInfo
+  } catch (error) {
+    console.error(error);
+  }
+}
 
-async function changeChannelName() {}
+async function renameChannelName(channelId, newName) {
+  try {
+    const result = await app.client.conversations.rename({
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: channelId,
+      name: newName
+    });
+    return result.channel; // channelInfo
+  } catch (error) {
+    console.error(error);
+  }
+}
 
 function formatChannel() {}
 
@@ -77,10 +104,20 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET
 });
 
-function searchForChannelTopicsAndHubHosts() {}
+function searchForChannelTopicsAndHubHosts() {
+  let channels = getChannelList();
+}
+
+async function setupReticulumClient() {
+  const reticulumHost = process.env.RETICULUM_HOST;
+  const reticulumClient = new ReticulumClient(reticulumHost);
+  await reticulumClient.connect();
+  console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
+  return reticulumClient;
+}
 
 async function start() {
-  const reticulumHost = setupReticulumClient();
+  const reticulumClient = await setupReticulumClient();
   const connectedHubs = {}; // { hubId: hubState }
   const bridges = new Bridges();
   const notificationManager = new NotificationManager();
@@ -124,7 +161,7 @@ app.command("/hubs", async ({ ack, payload, context }) => {
       });
       break;
     default:
-      await getChannelList();
+      console.log(await getChannelList());
       await app.client.chat.postMessage({
         token: context.botToken,
         channel: channelId,
