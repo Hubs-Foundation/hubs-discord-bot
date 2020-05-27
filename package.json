@@ -6,9 +6,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "discord-dev": "nodemon src/run-discord-bot.js",
+    "discord": "nodemon src/run-discord-bot.js",
     "discord-prod": "node src/run-discord-bot.js",
-    "slack-dev": "nodemon src/run-slack-bot.js",
+    "slack": "nodemon src/run-slack-bot.js",
     "slack-prod": "node src/run-slack-bot.js",
     "lint": "eslint src",
     "test": "tape tests/*.js"

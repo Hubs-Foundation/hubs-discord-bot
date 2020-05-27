@@ -366,12 +366,8 @@ async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   return new HubState(reticulumCh, host, resp.hub_id, resp.name, resp.slug, new Date(), stats, presenceRollups);
 }
 
-function getTopic(channel) {
-  return channel.topic;
-}
-
 // Returns a mapping of { (host, hubId): [discord channels] } for Hubs bridges in the given channels.
-function findBridges(topicManager, getTopic, channels) {
+function findBridges(topicManager, channels) {
   const result = new Map();
   for (const discordCh of channels) {
     const { hubUrl, hubId } = topicManager.matchHub(discordCh.topic) || {};
@@ -438,7 +434,7 @@ async function start() {
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   {
     const textChannels = Array.from(discordClient.channels.filter(ch => ch.type === "text").values());
-    const candidateBridges = findBridges(topicManager, getTopic, textChannels);
+    const candidateBridges = findBridges(topicManager, textChannels);
 
     for (const [key, channels] of candidateBridges.entries()) {
       const [host, hubId] = key.split(" ", 2);

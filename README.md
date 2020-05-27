@@ -122,3 +122,23 @@ nodemon
 use ngrok for getting the port available for slack bot to read from.
 https://api.slack.com/tutorials/tunneling-with-ngrok
 https://slack.dev/bolt-js/tutorial/getting-started
+
+// might not need: https://api.slack.com/messaging/webhooks
+// https://api.slack.com/messaging/webhooks#incoming_webhooks_programmatic
+toggle on incoming webhooks - for bridging chat
+Features > Incoming webhooks > Toggle on
+From Oauth response:
+{
+    "ok": true,
+    "access_token": "xoxp-XXXXXXXX-XXXXXXXX-XXXXX",
+    "scope": "identify,bot,commands,incoming-webhook,chat:write:bot",
+    "user_id": "XXXXXXXX",
+    "team_name": "Your Workspace Name",
+    "team_id": "XXXXXXXX",
+    "incoming_webhook": {
+        "channel": "#channel-it-will-post-to",
+        "channel_id": "C05002EAE",
+        "configuration_url": "https://workspacename.slack.com/services/BXXXXX",
+        "url": "https://hooks.slack.com/TXXXXX/BXXXXX/XXXXXXXXXX"
+    }
+}
