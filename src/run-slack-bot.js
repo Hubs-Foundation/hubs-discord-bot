@@ -3,7 +3,6 @@ const { App } = require("@slack/bolt");
 require("dotenv").config();
 
 const moment = require("moment-timezone");
-const discord = require("discord.js");
 const schedule = require("node-schedule");
 const { Bridges, HubState } = require("./bridges.js");
 const { ReticulumClient } = require("./reticulum.js");
@@ -32,7 +31,16 @@ const SLACK_BOT_API_BASE_URL = "https://slack.com/api/";
 const SLACK_SET_TOPIC = "conversations.setTopic";
 const SLACK_GET_CHANNEL_LIST = "conversations.list";
 const SLACK_GET_CHANNEL_INFO = "conversations.info";
-const SLACK_RENAME_CHANNEL = "conversations.rename";
+const SLACK_RENAME_CHANNEL = "conversati ons.rename";
+
+let statsdClient = null;
+const statsdHost = process.env.STATSD_HOST;
+if (statsdHost) {
+  const [hostname, port] = statsdHost.split(":");
+  statsdClient = new StatsdClient(hostname, port ? parseInt(port, 10) : 8125, process.env.STATSD_PREFIX);
+  console.info(ts(`Sending metrics to statsd @ ${statsdHost}.`));
+}
+const q = new BotEventQueue(statsdClient);
 
 function getChannelName(channelInfo) {
   return channelInfo.name;
@@ -53,22 +61,33 @@ async function getChannelList() {
     console.error(error);
   }
 }
-
-// Put conversations into the JavaScript object
-const conversationsStore = {};
-function saveConversations(conversationsArray) {
-  let conversationId = "";
-  conversationsArray.forEach(function(conversation) {
-    // Key conversation info on its unique ID
-    conversationId = conversation.id;
-    // Store the entire conversation object (you may not need all of the info)
-    conversationsStore[conversationId] = conversation;
-  });
+async function getChannelInfo(channelId) {
+  try {
+    const result = await app.client.conversations.info({
+      // The token you used to initialize your app
+      token: process.env.SLACK_BOT_TOKEN,
+      channel: channelId
+    });
+    return result.channel;
+  } catch (e) {
+    console.log(e);
+  }
 }
 
-async function sendMessage() {}
+// // Put conversations into the JavaScript object
+// const conversationsStore = {};
+// function saveConversations(conversationsArray) {
+//   let conversationId = "";
+//   conversationsArray.forEach(function(conversation) {
+//     // Key conversation info on its unique ID
+//     conversationId = conversation.id;
+//     // Store the entire conversation object (you may not need all of the info)
+//     conversationsStore[conversationId] = conversation;
+//   });
+// }
 
-async function changeChannelTopic(channelId, newTopic) {
+const SET_CHANNEL_TOPIC = "setChannelTopic";
+async function setChannelTopic(channelId, newTopic) {
   // permissions "needed": "channels:write,groups:write,mpim:write,im:write",
   try {
     const result = await app.client.conversations.setTopic({
@@ -77,8 +96,28 @@ async function changeChannelTopic(channelId, newTopic) {
       topic: newTopic
     });
     return result.channel; // channelInfo
-  } catch (error) {
-    console.error(error);
+  } catch (e) {
+    console.log(e);
+    if (e.error === "missing_scope") handleMissingScope(SET_CHANNEL_TOPIC, e.needed, channelId);
+    return null;
+  }
+}
+
+const ACTION_TO_MESSAGE = {
+  [SET_CHANNEL_TOPIC]: "To change the channel topic"
+};
+const DIRECTIONS_TO_MANAGE_BOT_SCOPES =
+  "Select your Hubs Slack bot in: https://api.slack.com/apps > 'OAuth & Permissions' > 'Scopes' section > Click 'Add an OAuth Scope' > Add needed scopes then try again.";
+/**
+ * If missing permission error and tell user that the bot needs additional permissions to do action
+ * @param {*} error
+ */
+async function handleMissingScope(action, neededScopes, channelId) {
+  const actionMessage = `${ACTION_TO_MESSAGE[action]}, I need "${neededScopes}" bot token scopes.\n\n${DIRECTIONS_TO_MANAGE_BOT_SCOPES}`;
+  try {
+    sendMessageToChannel(channelId, actionMessage);
+  } catch (e) {
+    console.log(e);
   }
 }
 
@@ -95,18 +134,20 @@ async function renameChannel(channelId, newName) {
   }
 }
 
+// TODO format channel
 function formatChannel() {}
 
+// sends a message to channel
 async function sendMessageToChannel(channelId, text) {
   try {
     const result = await app.client.chat.postMessage({
-      token: context.botToken,
+      token: process.env.SLACK_BOT_TOKEN,
       channel: channelId,
       // Text in the notification
       text: text
     });
   } catch (e) {
-    console.error(error);
+    console.error(e);
   }
 }
 
@@ -120,10 +161,7 @@ async function sendMessageToChannel(channelId, text) {
 // slash commands must enable it on the bot level
 // Create new Command
 
-const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET
-});
+console.log("2");
 
 // Returns a mapping of { (host, hubId): [discord channels] } for Hubs bridges in the given channels.
 function findBridges(topicManager, channels) {
@@ -376,37 +414,66 @@ async function searchForChannelTopicsAndHubHosts() {
 async function setupReticulumClient() {
   const reticulumHost = process.env.RETICULUM_HOST;
   const reticulumClient = new ReticulumClient(reticulumHost);
-  await reticulumClient.connect();
+  try {
+    await reticulumClient.connect();
+  } catch (e) {
+    console.log(e);
+  }
   console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
   return reticulumClient;
 }
 
+let reticulumClient = null;
+let topicManager = null;
 async function start() {
-  // ***
-  // const reticulumClient = await setupReticulumClient();
-  // const connectedHubs = {}; // { hubId: hubState }
-  // const bridges = new Bridges();
-  // const notificationManager = new NotificationManager();
-  // const topicManager = new TopicManager(HOSTNAMES);
-  // const candidateBridges = findBridges(topicManager, await getChannelList());
+  try {
+    reticulumClient = await setupReticulumClient();
+    // const connectedHubs = {}; // { hubId: hubState }
+    // const bridges = new Bridges();
+    // const notificationManager = new NotificationManager();
+    topicManager = new TopicManager(HOSTNAMES);
+    // const candidateBridges = findBridges(topicManager, await getChannelList());
+  } catch (e) {
+    console.log(e);
+  }
   // ***
   // todo scheduleSummaryPosting(bridges, q);
 }
 
-app.command("/hubs", async ({ ack, payload, context }) => {
-  ack(); // Acknowledge command for slack
+const app = new App({
+  token: process.env.SLACK_BOT_TOKEN,
+  signingSecret: process.env.SLACK_SIGNING_SECRET
+});
 
-  const channelId = payload.channel_id;
+app.command("/hubs", async ({ ack, payload, context }) => {
+  console.log("hello");
+  await ack(); // Acknowledge command for slack
+
+  console.log(Object.keys(payload));
+  console.log(Object.keys(context));
+
+  const teamId = payload.team_id; // T0139U6GLR2
+  const teamDomain = payload.team_domain; // hellohubs
+
+  const channelId = payload.channel_id; // C0133V80YFM
   const channelName = payload.channel_name;
   const userId = payload.user_id;
   const userName = payload.user_name;
 
+  console.log("channelId");
+  console.log(channelId);
+
   const command = payload.text ? payload.text.split(" ")[0] : undefined;
   const argumentList = payload.text ? payload.text.split(" ").slice(1) : [];
 
-  const hubState = bridges.getHub(channelId);
+  console.log("command is");
+  console.log(command);
+  console.log(argumentList);
+
+  // const hubState = bridges.getHub(channelId);
   switch (payload.text) {
     case undefined:
+      console.log("undefined");
       // Shows general information about the Hubs integration with the current Discord channel
       await app.client.chat.postMessage({
         token: context.botToken,
@@ -417,11 +484,43 @@ app.command("/hubs", async ({ ack, payload, context }) => {
       break;
     case "help":
       // Shows text needed
-      await sendMessageToChannel(channelId, helpCommandText("/hubs", "Slack"));
+      try {
+        await sendMessageToChannel(channelId, helpCommandText("/hubs", "Slack"));
+      } catch (e) {
+        console.log(e);
+      }
       break;
     case "create":
-      await sendMessageToChannel(channelId, "Create was messaged");
-      console.log(payload.channel);
+      // <hubsCommand> create [environment URL] [name]
+      // <hubsCommand> create
+      // should this check the topic, or hubState? does it matter?
+      try {
+        const channelInfo = await getChannelInfo(channelId);
+        const channelTopic = getChannelTopic(channelInfo);
+        if (topicManager.matchHub(channelTopic)) {
+          return sendMessageToChannel(
+            channelId,
+            "A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it."
+          );
+        }
+        const environmentURL = argumentList[0] ? argumentList[0] : process.env.DEFAULT_SCENE_URL;
+        const name = argumentList[1] ? argumentList[1] : "";
+
+        const { sceneId } = topicManager.matchScene(environmentURL) || {};
+        const { url: hubUrl, hub_id: hubId } = sceneId
+          ? await reticulumClient.createHubFromScene(name, sceneId)
+          : await reticulumClient.createHubFromUrl(name, environmentURL);
+        // ***
+        const updatedTopic = topicManager.addHub(channelTopic, hubUrl);
+        if ((await setChannelTopic(channelId, updatedTopic)) != null) {
+          return reticulumClient.bindHub(hubId, teamId, channelId);
+        }
+      } catch (e) {
+        console.log(e);
+      }
+      await sendMessageToChannel(channelId, context.botToken, "Create was messaged");
+      // console.log(payload.channel);
+
       // if (topicManager.matchHub(discordCh.topic)) {
       //   return discordCh.send(
       //     "A Hubs room is already bridged in the topic, so I am cowardly refusing to replace it."
@@ -444,7 +543,7 @@ app.command("/hubs", async ({ ack, payload, context }) => {
       // Shows text needed
       break;
     default:
-      console.log(await getChannelList());
+      // console.log(await getChannelList());
       await app.client.chat.postMessage({
         token: context.botToken,
         channel: channelId,
@@ -453,18 +552,28 @@ app.command("/hubs", async ({ ack, payload, context }) => {
       });
   }
 
-  console.log("hello");
-  console.log("payload text");
-  console.log(payload.text ? payload.text : "NO PAYLOAD TEXT ADDED");
-  console.log("context");
-  console.log(context);
+  // console.log("hello");
+  // console.log("payload text");
+  // console.log(payload.text ? payload.text : "NO PAYLOAD TEXT ADDED");
+  // console.log("context");
+  // console.log(context);
 });
+
+// // Listens to incoming messages that contain "hello"
+// app.message("hello", async ({ message, say }) => {
+//   console.log("Got message");
+//   // say() sends a message to the channel where the event was triggered
+//   await say(`Hey there <@${message.user}>!`);
+// });
 
 (async () => {
   // Start your app
-
-  await app.start(3000);
-  await start();
-
-  console.log("⚡️ Bolt app is running! on port:" + 3000);
+  try {
+    await start();
+    await app.start(3000);
+    console.log("⚡️ Bolt app is running! on port:" + 3000);
+  } catch (e) {
+    console.log("Something went wrong on starting slack bot server");
+    console.log(e);
+  }
 })();

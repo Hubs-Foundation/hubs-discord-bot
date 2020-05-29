@@ -706,6 +706,7 @@ async function start() {
           const name = args.length > 3 ? args[3] : getChannelBaseName(discordCh.name);
           const guildId = discordCh.guild.id;
           if (sceneId) {
+            // Todo can be refactored with ternary operator
             // !hubs create [scene URL] [name]
             const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
             const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);

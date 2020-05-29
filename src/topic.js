@@ -1,5 +1,5 @@
-const escapeStringRegexp = require('escape-string-regexp');
-const URL = require('url').URL;
+const escapeStringRegexp = require("escape-string-regexp");
+const URL = require("url").URL;
 
 const HUB_ID_RE = new RegExp("^\\w{7}$");
 const SCENE_ID_RE = new RegExp("^\\w{7}$");
@@ -11,7 +11,7 @@ function cleanSuffix(topic) {
 
 // Splits a URL's path into components, ignoring extra leading and trailing slashes.
 function splitPath(path) {
-  const trimmed = path.replace(/^\/+|\/+$/g, '');
+  const trimmed = path.replace(/^\/+|\/+$/g, "");
   return trimmed.split("/");
 }
 
@@ -19,7 +19,6 @@ function splitPath(path) {
 // Gently tries to enforce that Hub URLs are put at the end of the topic, separated with a pipe
 // from any other content.
 class TopicManager {
-
   constructor(hostnames) {
     this.hubUrlRe = TopicManager.buildHubUrlRegex(hostnames);
     this.sceneUrlRe = TopicManager.buildSceneUrlRegex(hostnames);
@@ -54,7 +53,9 @@ class TopicManager {
           }
         }
       }
-    } catch (e) { /* not a valid URL */ }
+    } catch (e) {
+      /* not a valid URL */
+    }
 
     return null;
   }
@@ -79,7 +80,9 @@ class TopicManager {
           }
         }
       }
-    } catch (e) { /* not a valid URL */ }
+    } catch (e) {
+      /* not a valid URL */
+    }
 
     return null;
   }
@@ -101,7 +104,6 @@ class TopicManager {
     const hostClauses = hostnames.map(host => `${escapeStringRegexp(host)}(?:\\:\\d+)?`).join("|");
     return new RegExp(`https?://(${hostClauses})/scenes/\\S*`);
   }
-
 }
 
 module.exports = { TopicManager };

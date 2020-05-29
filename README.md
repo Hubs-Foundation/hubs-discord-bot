@@ -142,3 +142,38 @@ From Oauth response:
         "url": "https://hooks.slack.com/TXXXXX/BXXXXX/XXXXXXXXXX"
     }
 }
+
+// Can catch this error and tell people permissions are missing
+{j
+  code: 'slack_webapi_platform_error',
+  data: {
+    ok: false,
+    error: 'missing_scope',
+    needed: 'chat:write:bot',
+    provided: 'commands',
+    response_metadata: { scopes: [Array], acceptedScopes: [Array] }
+  }
+}
+{
+  code: 'slack_webapi_platform_error',
+  data: {
+    ok: false,
+    error: 'not_in_channel',
+    response_metadata: { scopes: [Array], acceptedScopes: [Array] }
+  }
+}
+
+// Every time you update ngrok to another url
+Update https://api.slack.com/apps
+Event subscriptions > update to new Request URL > `https://c9130e85523d.ngrok.io/slack/events`
+AND
+Slash Commands > /hubs > Edit command > `https://c9130e85523d.ngrok.io/slack/events`
+https://c9130e85523d.ngrok.io/slack/events
+
+// might not use
+https://github.com/slackapi/bolt-js/issues/196
+// oauth and botid from user.info
+https://api.slack.com/methods/oauth.v2.access
+https://api.slack.com/authentication/oauth-v2#obtaining
+
+SLACK_BOT_TOKEN is the Bot User Oauth access token

@@ -62,13 +62,15 @@ const COMMAND_HELP_TEXT =
 
 function helpPrefix(hubsCommand, chatAppType) {
   let prefix = HELP_PREFIX.replace("<hubsCommand>", hubsCommand);
-  prefix = prefix.replace("<chatAppType>", chatAppType);
+  prefix = prefix.replace(/<chatAppType>/g, chatAppType);
   return prefix;
 }
 
 function helpCommandText(hubsCommand, chatAppType) {
-  let helpText = COMMAND_HELP_TEXT.replace("<hubsCommand>", hubsCommand);
+  console.log("inside helpCommandText");
+  let helpText = COMMAND_HELP_TEXT.replace(/<hubsCommand>/g, hubsCommand);
   helpText = helpText.replace("<chatAppType>", chatAppType);
+  console.log("after help command text");
   return helpText;
 }
 
