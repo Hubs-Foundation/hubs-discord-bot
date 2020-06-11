@@ -123,6 +123,33 @@ use ngrok for getting the port available for slack bot to read from.
 https://api.slack.com/tutorials/tunneling-with-ngrok
 https://slack.dev/bolt-js/tutorial/getting-started
 
+
+Bot scopes:
+channels:manage
+channels:read
+chat:write
+commands
+groups:read
+groups:write
+im:read
+im:write
+mpim:read
+mpim:write
+// instead of invalid_service use:
+
+
+User Token Scopes:
+// Adding these throw an error 'invalid_service' in slack
+identity.basic
+identity.email
+
+Slash commands
+Command: /hubs
+Request URL = http://<yourRootDomain>/slack/events
+Redirect URLS = https://hubs.local:4000/api/v1/oauth/slack
+
+Reinstall if you see /hubs failed with the error "invalid_service"
+
 // might not need: https://api.slack.com/messaging/webhooks
 // https://api.slack.com/messaging/webhooks#incoming_webhooks_programmatic
 toggle on incoming webhooks - for bridging chat
@@ -177,3 +204,91 @@ https://api.slack.com/methods/oauth.v2.access
 https://api.slack.com/authentication/oauth-v2#obtaining
 
 SLACK_BOT_TOKEN is the Bot User Oauth access token
+
+https://api.slack.com/methods/admin.teams.admins.list
+
+https://slack.com/api/admin.teams.admins.list
+scope: 	admin.teams:read
+
+{ token: team_id:   }
+response:
+{
+    "ok": true,
+    "admin_ids": [
+        "U1234"
+    ]
+}
+
+https://slack.com/api/admin.users.list
+scope 	admin.users:read
+
+{token: team_id:}
+response:
+{
+    "ok": true,
+    "users": [
+        {
+            "id": "T1234",
+            "email": "bront@slack.com",
+            "is_admin": false,
+            "is_owner": false,
+            "is_primary_owner": false,
+            "is_restricted": false,
+            "is_ultra_restricted": false,
+            "is_bot": false
+        }
+    ]
+}
+
+
+	https://slack.com/api/users.info
+  scope 	users:read
+
+  {token: user:} // id
+{
+    "ok": true,
+    "user": {
+        "id": "W012A3CDE",
+        "team_id": "T012AB3C4",
+        "name": "spengler",
+        "deleted": false,
+        "color": "9f69e7",
+        "real_name": "Egon Spengler",
+        "tz": "America/Los_Angeles",
+        "tz_label": "Pacific Daylight Time",
+        "tz_offset": -25200,
+        "profile": {
+            "avatar_hash": "ge3b51ca72de",
+            "status_text": "Print is dead",
+            "status_emoji": ":books:",
+            "real_name": "Egon Spengler",
+            "display_name": "spengler",
+            "real_name_normalized": "Egon Spengler",
+            "display_name_normalized": "spengler",
+            "email": "spengler@ghostbusters.example.com",
+            "image_original": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "image_24": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "image_32": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "image_48": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "image_72": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "image_192": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "image_512": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
+            "team": "T012AB3C4"
+        },
+        "is_admin": true,
+        "is_owner": false,
+        "is_primary_owner": false,
+        "is_restricted": false,
+        "is_ultra_restricted": false,
+        "is_bot": false,
+        "updated": 1502138686,
+        "is_app_user": false,
+        "has_2fa": false
+    }
+}
+
+
+hubs-proxy.local -- error fetching the gltf
+In hosts: mac `sudo vim /etc/hosts` add hubs-proxy.local
+AND
+try to download the gltf file using that domain in your browser to accept the unsafe certificate "Your connection is not private"

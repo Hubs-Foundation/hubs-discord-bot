@@ -82,6 +82,7 @@ class TopicManager {
       }
     } catch (e) {
       /* not a valid URL */
+      return null;
     }
 
     return null;

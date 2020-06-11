@@ -706,19 +706,19 @@ async function start() {
           const name = args.length > 3 ? args[3] : getChannelBaseName(discordCh.name);
           const guildId = discordCh.guild.id;
           if (sceneId) {
-            // Todo can be refactored with ternary operator
+            // Todo can be refactored to one block with ternary operator
             // !hubs create [scene URL] [name]
             const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromScene(name, sceneId);
             const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
             if ((await trySetTopic(discordCh, updatedTopic)) != null) {
-              return reticulumClient.bindHub(hubId, guildId, discordCh.id);
+              return reticulumClient.bindHub(hubId, "discord", guildId, discordCh.id);
             }
           } else {
             // !hubs create [environment URL] [name]
             const { url: hubUrl, hub_id: hubId } = await reticulumClient.createHubFromUrl(name, url);
             const updatedTopic = topicManager.addHub(discordCh.topic, hubUrl);
             if ((await trySetTopic(discordCh, updatedTopic)) != null) {
-              return reticulumClient.bindHub(hubId, guildId, discordCh.id);
+              return reticulumClient.bindHub(hubId, "discord", guildId, discordCh.id);
             }
           }
           return;
