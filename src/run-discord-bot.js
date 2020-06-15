@@ -90,8 +90,6 @@ async function updateChannelPresenceIcons(channels, active) {
 
 // Returns a promise indicating when the Discord client is connected and ready to query the API.
 async function connectToDiscord(client, token) {
-  console.log(client);
-  console.log(token);
   return new Promise((resolve, reject) => {
     client.on("ready", () => resolve(client));
     client.login(token).catch(e => reject(e));

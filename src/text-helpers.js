@@ -58,7 +58,20 @@ const COMMAND_HELP_TEXT =
   "🦆 `<hubsCommand> users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
   "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
   "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
-  "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord."; // TODO update github links
+  "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
+
+const OAUTH_ONLY_COMMAND_HELP_TEXT =
+  "Command reference:\n\n" +
+  "🦆 `<hubsCommand>` - Shows general information about the Hubs integration with the current <chatAppType> channel.\n" +
+  "🦆 `<hubsCommand> help` - Shows this text you're reading right now.\n" +
+  "🦆 `<hubsCommand> create` - Creates a default Hubs room and puts its URL into the channel topic. " +
+  "Rooms created with `<hubsCommand> create` will inherit moderation permissions from this <chatAppType> channel and only allow <chatAppType> users in this channel to join the room.\n" +
+  "🦆 `<hubsCommand> create [environment URL] [name]` - Creates a new room with the given environment and name, and puts its URL into the channel topic. " +
+  "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
+  "🦆 `<hubsCommand> remove` - Removes the room URL from the topic and stops bridging this <chatAppType> channel with Hubs.\n" +
+  "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
+  "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
+  "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
 
 function helpPrefix(hubsCommand, chatAppType) {
   let prefix = HELP_PREFIX.replace("<hubsCommand>", hubsCommand);
@@ -67,10 +80,11 @@ function helpPrefix(hubsCommand, chatAppType) {
 }
 
 function helpCommandText(hubsCommand, chatAppType) {
-  console.log("inside helpCommandText");
-  let helpText = COMMAND_HELP_TEXT.replace(/<hubsCommand>/g, hubsCommand);
+  let helpText =
+    chatAppType === "slack"
+      ? OAUTH_ONLY_COMMAND_HELP_TEXT.replace(/<hubsCommand>/g, hubsCommand)
+      : COMMAND_HELP_TEXT.replace(/<hubsCommand>/g, hubsCommand);
   helpText = helpText.replace("<chatAppType>", chatAppType);
-  console.log("after help command text");
   return helpText;
 }
 

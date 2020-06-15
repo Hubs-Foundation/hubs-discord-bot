@@ -241,8 +241,6 @@ class ReticulumClient {
         channel_id: channelId
       }
     };
-    console.log("bindingHub payload");
-    console.log(payload);
     return this._request("POST", "hub_bindings", payload);
   }
 
@@ -253,7 +251,6 @@ class ReticulumClient {
       context: { mobile: false, hmd: false, discord: true },
       bot_access_key: process.env.RETICULUM_BOT_ACCESS_KEY
     };
-    console.log("NOPE inside channelForHub");
     return new ReticulumChannel(this.socket.channel(`hub:${hubId}`, payload));
   }
 }
