@@ -1,5 +1,3 @@
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-
 // Require the Bolt package (github.com/slackapi/bolt)
 const { App } = require("@slack/bolt");
 require("dotenv").config();

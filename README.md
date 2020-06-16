@@ -1,19 +1,24 @@
-# hubs-discord-bot (Beta)
+# hubs-discord-bot (Beta) & hubs-slackbot (Alpha)
 
-### [Go here to add the hosted bot to your server!][invite-page]
+### [Go here to add the hosted discord bot to your server!][invite-page]
 
-### [Video introduction](https://www.youtube.com/watch?v=5HtRJolThZ8)
+### [Discord Bot Video introduction](https://www.youtube.com/watch?v=5HtRJolThZ8)
 
 **Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
 
 A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
+Discord
 - [What it does](#what-it-does)
   - [Room/channel permissions linkage](#room-channel-permissions-linkage)
   - [Room/channel bridging](#room-channel-bridging)
 - [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
 - [Permissions](#permissions)
 - [Hacking on it](#hacking-on-it)
+Slack (Alpha)
+- [What it does](#slack-what-it-does)
+- [Running the slack-bot](#slack-running-the-slack-bot)
+- [Hacking on the slack-bot](#slack-hacking-on-the-slack-bot)
 
 ## What it does
 
@@ -50,8 +55,7 @@ Once the bot is running on your server:
 
 1. Give the bot [appropriate permissions](#permissions) on the channels you want it to run in.
 
-2. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
-   send Hubs status updates.
+2. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and send Hubs status updates.
 
 3. Try out the bot! Type `!hubs` in a channel the bot is in to see all of the ways you can control the bot. Put your favorite Hubs room into a channel topic to start bridging, or use the `!hubs create` command to create a new room.
 
@@ -59,7 +63,16 @@ Once the bot is running on your server:
 
 The bot requires several permissions in order to work:
 
-- "Send messages," "Read messages," and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
+General Permissions
+- Manage Webhooks
+- Manage Channels - Grant locally per channel not in Developer Portal
+Text Permissions
+- Send Messages
+- Manage Messages
+- Embed Links
+- Read Message History
+
+- "Send messages" and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
 - "Manage webhooks" is necessary in order for the bot to find and use a webhook for bridging chat.
 - "Manage channels" is necessary in order for the bot to set the channel topic and bridge chat. **Note:** We do not ask for this permission globally when you add the bot to your server, instead we recommend you grant this permission to the bot in specific groups or channels.
 - "Manage messages" and "read message history" are necessary in order for the bot to pin notification messages. Like "manage channels", you should probably grant these for specific groups and channels.
@@ -80,13 +93,16 @@ To simply run the bot process:
 
 4. [Create a Discord bot on the Discord website.][discord-docs]
 
-5. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. Set `IS_RUNNING_LOCALLY` to true and your `RETICULUM_HOST={your server}` should point to 'hubs.local:4000'. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
+5. Add redirect URI in the OAuth page and select the bot permissions
+   - Redirect URI: `https://hubs.local:4000/api/v1/oauth/discord`
 
-6. Inside your local reticulum instance in reticulum/config/dev.exs change the configuration for `Ret.DiscordClient` to point to your bot's: `client_id`, `client_secret`, and `bot_token` found inside your discord bot.
+6. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. Set `IS_RUNNING_LOCALLY` to true and your `RETICULUM_HOST={your server}` should point to 'hubs.local:4000'. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
 
-7. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
+7. Inside your local reticulum instance in reticulum/config/dev.exs change the configuration for `Ret.DiscordClient` to point to your bot's: `client_id`, `client_secret`, and `bot_token` found inside your discord bot.
 
-8. [Follow the instructions above](#usage) to set up and use the bot on your Discord guild.
+8. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
+
+9. [Follow the instructions above](#usage) to set up and use the bot on your Discord guild.
 
 [npm]: https://nodejs.org/en/
 [discord-docs]: https://discordapp.com/developers/docs/intro
@@ -94,201 +110,63 @@ To simply run the bot process:
 [hubs-discord]: https://discord.gg/wHmY4nd
 [bot-invite]: mailto:hubs@mozilla.com
 
-// missing notes on getting discord bot up and running
-Return uri for oauth needs to be `https://hubs.local:4000/api/v1/oauth/discord`
-scopes
-bot
-Bot permissions: manage channels, etc. look at docs but they've changed.
-reticulum host
-hubs.local:4000
+# Slack-bot
 
-for setup on hubs cloud:
-/hab/svc/reticulum/config/config.toml for the RETICULUM_BOT_ACCESS_KEY
-Need to add hostname of reticulum backend -- likely your internal url
+## Slack what it does
 
-What is statsd?
+If you add the slackbot to your slack team, you'll be able to use Slack OAuth to connect to your hub's rooms.
 
-Improve dev environment setup instructions.
+## Slack Running the slack-bot
 
+Coming soon!
 
-### Slackbot
+## Hacking on the slack-bot
 
-Setup npm ci
-Create a new App via https://api.slack.com/apps
-Get the Slack Bot Token and the SLACK_SIGNING_SECRET and enter those into a .env file.
+Running your local development environment.
 
-Setup your bot dev environment.
-nodemon
-use ngrok for getting the port available for slack bot to read from.
-https://api.slack.com/tutorials/tunneling-with-ngrok
-https://slack.dev/bolt-js/tutorial/getting-started
+1. Run `npm ci` in the root
+2. Create a new app in https://api.slack.com/apps
+3. Apps > OAuth 2.0 > Add bot scopes:
+   - channels:manage
+   - channels:read
+   - chat:write
+   - commands
+   - groups:read
+   - groups:write
+   - im:read
+   - im:write
+   - mpim:read
+   - mpim:write
+4. Redirect URLS = https://hubs.local:4000/api/v1/oauth/slack
+5. Setup .env file
+   - Duplicate .env.defaults and rename to .env
+   - Copy the SLACK_BOT_TOKEN and SLACK_SIGNING_SECRET into the .env file from your bot https://api.slack.com/apps
+6. On your local reticulum instance add these to the dev.exs: client_id, client_secret, bot_token, signing_secret
+7. Set up ngrok
+   - Download: https://ngrok.com/download
+   - Set up ngrok in your $PATH
+   - Run in command prompt or terminal: `ngrok http 3000`
+   **NOTE** Every time you update ngrok to another url, you'll need to update the slash command
+8. Create a slash command in the slack menu:
+   - Command: /hubs
+   - Request URL = http://<yourRootDomain>/slack/events
+9. Run /hubs: `npm ci` then `npm run local`
+10. Run /reticulum
+   - To test oauth you can delete the accounts + rooms with `mix ecto.drop` then `mix ecto.create`
+11. `npm run slack`
+12. Add the slackbot to your team + invite the slackbot to your channel and write the command "/hubs help"
+13. Run "/hubs create" then connect to the generated rooms
 
-
-Bot scopes:
-channels:manage
-channels:read
-chat:write
-commands
-groups:read
-groups:write
-im:read
-im:write
-mpim:read
-mpim:write
-// instead of invalid_service use:
-
-
-User Token Scopes:
-// Adding these throw an error 'invalid_service' in slack
-identity.basic
-identity.email
-
-Slash commands
-Command: /hubs
-Request URL = http://<yourRootDomain>/slack/events
-Redirect URLS = https://hubs.local:4000/api/v1/oauth/slack
-
-Reinstall if you see /hubs failed with the error "invalid_service"
-
-// might not need: https://api.slack.com/messaging/webhooks
-// https://api.slack.com/messaging/webhooks#incoming_webhooks_programmatic
-toggle on incoming webhooks - for bridging chat
-Features > Incoming webhooks > Toggle on
-From Oauth response:
-{
-    "ok": true,
-    "access_token": "xoxp-XXXXXXXX-XXXXXXXX-XXXXX",
-    "scope": "identify,bot,commands,incoming-webhook,chat:write:bot",
-    "user_id": "XXXXXXXX",
-    "team_name": "Your Workspace Name",
-    "team_id": "XXXXXXXX",
-    "incoming_webhook": {
-        "channel": "#channel-it-will-post-to",
-        "channel_id": "C05002EAE",
-        "configuration_url": "https://workspacename.slack.com/services/BXXXXX",
-        "url": "https://hooks.slack.com/TXXXXX/BXXXXX/XXXXXXXXXX"
-    }
-}
-
-// Can catch this error and tell people permissions are missing
-{j
-  code: 'slack_webapi_platform_error',
-  data: {
-    ok: false,
-    error: 'missing_scope',
-    needed: 'chat:write:bot',
-    provided: 'commands',
-    response_metadata: { scopes: [Array], acceptedScopes: [Array] }
-  }
-}
-{
-  code: 'slack_webapi_platform_error',
-  data: {
-    ok: false,
-    error: 'not_in_channel',
-    response_metadata: { scopes: [Array], acceptedScopes: [Array] }
-  }
-}
-
-// Every time you update ngrok to another url
-Update https://api.slack.com/apps
-Event subscriptions > update to new Request URL > `https://c9130e85523d.ngrok.io/slack/events`
-AND
-Slash Commands > /hubs > Edit command > `https://c9130e85523d.ngrok.io/slack/events`
-https://c9130e85523d.ngrok.io/slack/events
-
-// might not use
-https://github.com/slackapi/bolt-js/issues/196
-// oauth and botid from user.info
-https://api.slack.com/methods/oauth.v2.access
-https://api.slack.com/authentication/oauth-v2#obtaining
-
-SLACK_BOT_TOKEN is the Bot User Oauth access token
-
-https://api.slack.com/methods/admin.teams.admins.list
-
-https://slack.com/api/admin.teams.admins.list
-scope: 	admin.teams:read
-
-{ token: team_id:   }
-response:
-{
-    "ok": true,
-    "admin_ids": [
-        "U1234"
-    ]
-}
-
-https://slack.com/api/admin.users.list
-scope 	admin.users:read
-
-{token: team_id:}
-response:
-{
-    "ok": true,
-    "users": [
-        {
-            "id": "T1234",
-            "email": "bront@slack.com",
-            "is_admin": false,
-            "is_owner": false,
-            "is_primary_owner": false,
-            "is_restricted": false,
-            "is_ultra_restricted": false,
-            "is_bot": false
-        }
-    ]
-}
-
-
-	https://slack.com/api/users.info
-  scope 	users:read
-
-  {token: user:} // id
-{
-    "ok": true,
-    "user": {
-        "id": "W012A3CDE",
-        "team_id": "T012AB3C4",
-        "name": "spengler",
-        "deleted": false,
-        "color": "9f69e7",
-        "real_name": "Egon Spengler",
-        "tz": "America/Los_Angeles",
-        "tz_label": "Pacific Daylight Time",
-        "tz_offset": -25200,
-        "profile": {
-            "avatar_hash": "ge3b51ca72de",
-            "status_text": "Print is dead",
-            "status_emoji": ":books:",
-            "real_name": "Egon Spengler",
-            "display_name": "spengler",
-            "real_name_normalized": "Egon Spengler",
-            "display_name_normalized": "spengler",
-            "email": "spengler@ghostbusters.example.com",
-            "image_original": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "image_24": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "image_32": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "image_48": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "image_72": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "image_192": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "image_512": "https://.../avatar/e3b51ca72dee4ef87916ae2b9240df50.jpg",
-            "team": "T012AB3C4"
-        },
-        "is_admin": true,
-        "is_owner": false,
-        "is_primary_owner": false,
-        "is_restricted": false,
-        "is_ultra_restricted": false,
-        "is_bot": false,
-        "updated": 1502138686,
-        "is_app_user": false,
-        "has_2fa": false
-    }
-}
-
-
-hubs-proxy.local -- error fetching the gltf
-In hosts: mac `sudo vim /etc/hosts` add hubs-proxy.local
-AND
-try to download the gltf file using that domain in your browser to accept the unsafe certificate "Your connection is not private"
+#### Issues with dev environment and fixes:
+- Error Fetching the gltf - your client is blocking the proxy
+   - hubs-proxy.local -- error fetching the gltf
+   - In hosts: mac `sudo vim /etc/hosts` add hubs-proxy.local
+   - Try to download the gltf file using that domain in your browser to accept the unsafe certificate "Your connection is not private"
+- Certificate expired in the client - need to refresh the self-signed local certs
+   - If you're running /hubs and /reticulum locally
+   - Refresh cert /hubs at https://hubs.local:8080
+   - Refresh cert via /reticulum served at https://hubs.local:4000
+- Error "invalid_service" in slack after slack command
+   - Reinstall slack app and possibly regenerate keys
+- Error "http_client_error" in slack after slack command
+   - Your bot isn't running, your ngrok isn't connected, or you need to update the ngrok url in the slack app menus

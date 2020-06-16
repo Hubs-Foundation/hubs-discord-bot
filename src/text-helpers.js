@@ -68,10 +68,7 @@ const OAUTH_ONLY_COMMAND_HELP_TEXT =
   "Rooms created with `<hubsCommand> create` will inherit moderation permissions from this <chatAppType> channel and only allow <chatAppType> users in this channel to join the room.\n" +
   "🦆 `<hubsCommand> create [environment URL] [name]` - Creates a new room with the given environment and name, and puts its URL into the channel topic. " +
   "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
-  "🦆 `<hubsCommand> remove` - Removes the room URL from the topic and stops bridging this <chatAppType> channel with Hubs.\n" +
-  "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
-  "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
-  "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
+  "🦆 `<hubsCommand> remove` - Removes the room URL from the topic and stops bridging this <chatAppType> channel with Hubs.";
 
 function helpPrefix(hubsCommand, chatAppType) {
   let prefix = HELP_PREFIX.replace("<hubsCommand>", hubsCommand);
@@ -81,10 +78,10 @@ function helpPrefix(hubsCommand, chatAppType) {
 
 function helpCommandText(hubsCommand, chatAppType) {
   let helpText =
-    chatAppType === "slack"
+    chatAppType === "Slack"
       ? OAUTH_ONLY_COMMAND_HELP_TEXT.replace(/<hubsCommand>/g, hubsCommand)
       : COMMAND_HELP_TEXT.replace(/<hubsCommand>/g, hubsCommand);
-  helpText = helpText.replace("<chatAppType>", chatAppType);
+  helpText = helpText.replace(/<chatAppType>/g, chatAppType);
   return helpText;
 }
 

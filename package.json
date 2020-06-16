@@ -6,9 +6,9 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "discord": "nodemon src/run-discord-bot.js",
+    "discord": "NODE_TLS_REJECT_UNAUTHORIZED=0 nodemon src/run-discord-bot.js",
     "discord-prod": "node src/run-discord-bot.js",
-    "slack": "nodemon src/run-slack-bot.js",
+    "slack": "NODE_TLS_REJECT_UNAUTHORIZED=0 nodemon src/run-slack-bot.js",
     "slack-prod": "node src/run-slack-bot.js",
     "lint": "eslint src",
     "test": "tape tests/*.js"
