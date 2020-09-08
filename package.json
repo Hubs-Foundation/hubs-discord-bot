@@ -6,6 +6,7 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "local": "NODE_TLS_REJECT_UNAUTHORIZED=0 npm start",
     "lint": "eslint src",
     "test": "tape tests/*.js"
   },

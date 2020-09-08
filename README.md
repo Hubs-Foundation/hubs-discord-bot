@@ -1,19 +1,24 @@
 # hubs-discord-bot (Beta)
 
-### [Go here to add the hosted bot to your server!][invite-page]
+### [Go here to add the hosted discord bot to your server!][invite-page]
 
-### [Video introduction](https://www.youtube.com/watch?v=5HtRJolThZ8)
+### [Discord Bot Video introduction](https://www.youtube.com/watch?v=5HtRJolThZ8)
 
 **Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
 
 A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
-* [What it does](#what-it-does)
-  * [Room/channel permissions linkage](#room-channel-permissions-linkage)
-  * [Room/channel bridging](#room-channel-bridging)
-* [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
-* [Permissions](#permissions)
-* [Hacking on it](#hacking-on-it)
+Discord
+- [What it does](#what-it-does)
+  - [Room/channel permissions linkage](#room-channel-permissions-linkage)
+  - [Room/channel bridging](#room-channel-bridging)
+- [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
+- [Permissions](#permissions)
+- [Hacking on it](#hacking-on-it)
+Slack (Alpha)
+- [What it does](#slack-what-it-does)
+- [Running the slack-bot](#slack-running-the-slack-bot)
+- [Hacking on the slack-bot](#slack-hacking-on-the-slack-bot)
 
 ## What it does
 
@@ -36,7 +41,7 @@ Independently of being permission-linked, the bot will detect any Hubs rooms in 
 - A notification will appear in the Discord channel when someone joins or leaves the Hubs room, or if administrative stuff happens in the Hubs room.
 - Text chat and images will be bridged from the Discord channel into the Hubs room.
 - Text chat and photos will be bridged from the Hubs room into the Discord channel.
-- Links to media (images, videos, models) which are *pinned* in the Hubs room will be bridged to Discord.
+- Links to media (images, videos, models) which are _pinned_ in the Hubs room will be bridged to Discord.
 
 Note that you need to set up a webhook for the bot to use in the Discord channel, or it won't be able to post chat from Hubs.
 
@@ -50,8 +55,7 @@ Once the bot is running on your server:
 
 1. Give the bot [appropriate permissions](#permissions) on the channels you want it to run in.
 
-2. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and
-   send Hubs status updates.
+2. Create a webhook named "Hubs" in the channels you want it to run in. It will use this webhook to bridge chat and send Hubs status updates.
 
 3. Try out the bot! Type `!hubs` in a channel the bot is in to see all of the ways you can control the bot. Put your favorite Hubs room into a channel topic to start bridging, or use the `!hubs create` command to create a new room.
 
@@ -59,7 +63,16 @@ Once the bot is running on your server:
 
 The bot requires several permissions in order to work:
 
-- "Send messages," "Read messages," and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
+General Permissions
+- Manage Webhooks
+- Manage Channels - Grant locally per channel not in Developer Portal
+Text Permissions
+- Send Messages
+- Manage Messages
+- Embed Links
+- Read Message History
+
+- "Send messages" and "Embed links" are necessary in order to bridge between the Hubs room that is linked to a channel and the messages that are sent within the channel on Discord.
 - "Manage webhooks" is necessary in order for the bot to find and use a webhook for bridging chat.
 - "Manage channels" is necessary in order for the bot to set the channel topic and bridge chat. **Note:** We do not ask for this permission globally when you add the bot to your server, instead we recommend you grant this permission to the bot in specific groups or channels.
 - "Manage messages" and "read message history" are necessary in order for the bot to pin notification messages. Like "manage channels", you should probably grant these for specific groups and channels.
@@ -80,11 +93,16 @@ To simply run the bot process:
 
 4. [Create a Discord bot on the Discord website.][discord-docs]
 
-5. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`.
+5. Add redirect URI in the OAuth page and select the bot permissions
+   - Redirect URI: `https://hubs.local:4000/api/v1/oauth/discord`
 
-6. Run `npm start` to start the server, connect to Discord and Reticulum, and operate indefinitely.
+6. Create an `.env` file with your bot's API token. Include `RETICULUM_HOST={your server}` and `HUBS_HOSTS={your server}` to point it at your local backend. `RETICULUM_HOST={your server}` should point to 'hubs.local:4000'. You can see the different configuration bits you can override in [`.env.defaults`](./.env.defaults). You can also pass these values as environment variables when you run `npm start`/`npm run local`.
 
-7. [Follow the instructions above](#usage) to set up and use the bot on your Discord guild.
+7. Inside your local reticulum instance in reticulum/config/dev.exs change the configuration for `Ret.DiscordClient` to point to your bot's: `client_id`, `client_secret`, and `bot_token` found inside your discord bot.
+
+8. Run `npm run local` to start the server, connect to Discord and Reticulum, and operate indefinitely.
+
+9. [Follow the instructions above](#usage) to set up and use the bot on your Discord guild.
 
 [npm]: https://nodejs.org/en/
 [discord-docs]: https://discordapp.com/developers/docs/intro
