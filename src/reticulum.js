@@ -6,9 +6,6 @@ const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
 
-// All of the session IDs ever assigned to the bot.
-const BOT_SESSION_IDS = new Set();
-
 // Converts a Phoenix message push object into a promise that resolves when the push
 // is acknowledged by Reticulum or rejects when it times out or Reticulum produces an error.
 function promisifyPush(push) {
@@ -32,12 +29,14 @@ class ReticulumChannel extends EventEmitter {
   async connect() {
 
     this.presence.onJoin((id, curr, p) => {
-      if (BOT_SESSION_IDS.has(id)) {
+      const mostRecent = p.metas[p.metas.length - 1];
+
+      if (mostRecent.context.discord) {
         return;
       }
-      const mostRecent = p.metas[p.metas.length - 1];
+
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
-        // this guy was already in the lobby or room, notify iff their name changed or they moved between the lobby and room
+        // this user was already in the lobby or room, notify iff their name changed or they moved between the lobby and room
         const previous = curr.metas[curr.metas.length - 1];
         if (previous.profile && mostRecent.profile && previous.profile.displayName !== mostRecent.profile.displayName) {
           this.emit('renameuser', Date.now(), id, mostRecent.presence, previous.profile.displayName, mostRecent.profile.displayName);
@@ -47,18 +46,22 @@ class ReticulumChannel extends EventEmitter {
         }
         return;
       }
-      // this guy was not previously present, notify for a join
+
+      // this user was not previously present, notify for a join
       this.emit('join', Date.now(), id, mostRecent.presence, mostRecent.profile.displayName);
     });
 
     this.presence.onLeave((id, curr, p) => {
-      if (BOT_SESSION_IDS.has(id)) {
+      const mostRecent = p.metas[p.metas.length - 1];
+
+      if (mostRecent.context.discord) {
         return;
       }
-      const mostRecent = p.metas[p.metas.length - 1];
+
       if (curr != null && curr.metas != null && curr.metas.length > 0) {
-        return; // this guy is still in the lobby or room, don't notify yet
+        return; // this user is still in the lobby or room, don't notify yet
       }
+
       this.emit('leave', Date.now(), id, mostRecent.presence, mostRecent.profile.displayName);
     });
 
@@ -86,11 +89,11 @@ class ReticulumChannel extends EventEmitter {
       }
     });
 
-    this.channel.on("message", ({ session_id, type, body, from }) => {
-      // we sent this message ourselves just now, don't notify ourselves about it
-      if (BOT_SESSION_IDS.has(session_id)) {
+    this.channel.on("message", ({ session_id, type, body, from, discord }) => {
+      if (discord) {
         return;
       }
+
       const sender = from || this.getName(session_id);
       this.emit('message', Date.now(), session_id, sender, type, body);
     });
@@ -102,10 +105,6 @@ class ReticulumChannel extends EventEmitter {
         .receive("ok", data => { // this "ok" handler will be called on reconnects as well
 
           this.emit('connect', Date.now(), data.session_id);
-          // note that it's kind of inherently strange that session IDs are associated with our socket on the
-          // server, but we get them out only from channel join messages, causing this code to be in a weird
-          // place. roll with it now i guess
-          BOT_SESSION_IDS.add(data.session_id);
 
           resolve(data);
         });
@@ -132,8 +131,11 @@ class ReticulumChannel extends EventEmitter {
   getUsers() {
     const result = {};
     for (const id in this.presence.state) {
-      if (!BOT_SESSION_IDS.has(id)) {
-        result[id] = this.presence.state[id];
+      const state = this.presence.state[id];
+      const mostRecentMeta = state.metas[state.metas.length - 1];
+
+      if (!mostRecentMeta.context.discord) {
+        result[id] = state;
       }
     }
     return result;
@@ -143,7 +145,10 @@ class ReticulumChannel extends EventEmitter {
   getUserCount() {
     let result = 0;
     for (const id in this.presence.state) {
-      if (!BOT_SESSION_IDS.has(id)) {
+      const state = this.presence.state[id];
+      const mostRecentMeta = state.metas[state.metas.length - 1];
+
+      if (!mostRecentMeta.context.discord) {
         result++;
       }
     }
@@ -152,7 +157,7 @@ class ReticulumChannel extends EventEmitter {
 
   // Sends a chat message that Hubs users will see in the chat box.
   sendMessage(name, kind, body) {
-    this.channel.push("message", { type: kind, from: name, body }); // no ack is expected
+    this.channel.push("message", { type: kind, from: name, body, discord: true }); // no ack is expected
   }
 
   // Updates our profile metadata in presence.
