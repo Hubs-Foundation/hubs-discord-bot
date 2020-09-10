@@ -15,10 +15,6 @@ Discord
 - [Running the bot](#great-i-want-to-run-this-on-my-discord-server)
 - [Permissions](#permissions)
 - [Hacking on it](#hacking-on-it)
-Slack (Alpha)
-- [What it does](#slack-what-it-does)
-- [Running the slack-bot](#slack-running-the-slack-bot)
-- [Hacking on the slack-bot](#slack-hacking-on-the-slack-bot)
 
 ## What it does
 
