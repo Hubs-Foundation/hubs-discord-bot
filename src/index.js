@@ -3,6 +3,11 @@ const dotenv = require("dotenv");
 dotenv.config({ path: ".env" });
 dotenv.config({ path: ".env.defaults" });
 
+if (process.env.SENTRY_DSN) {
+  const Sentry = require("@sentry/node");
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+}
+
 const moment = require('moment-timezone');
 const discord = require('discord.js');
 const schedule = require('node-schedule');

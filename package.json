@@ -19,6 +19,7 @@
     "node": ">=8.0.0"
   },
   "dependencies": {
+    "@sentry/node": "^5.23.0",
     "bufferutil": "^4.0.1",
     "discord.js": "^11.5.1",
     "dotenv": "^8.2.0",
