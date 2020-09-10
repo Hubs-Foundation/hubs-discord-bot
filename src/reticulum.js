@@ -17,6 +17,10 @@ function promisifyPush(push) {
   });
 }
 
+function isDiscordBot(presenceMetadata) {
+  return presenceMetadata.context && presenceMetadata.context.discord;
+}
+
 // State related to a single Hubs Phoenix channel subscription.
 class ReticulumChannel extends EventEmitter {
 
@@ -31,7 +35,7 @@ class ReticulumChannel extends EventEmitter {
     this.presence.onJoin((id, curr, p) => {
       const mostRecent = p.metas[p.metas.length - 1];
 
-      if (mostRecent.context.discord) {
+      if (isDiscordBot(mostRecent)) {
         return;
       }
 
@@ -54,7 +58,7 @@ class ReticulumChannel extends EventEmitter {
     this.presence.onLeave((id, curr, p) => {
       const mostRecent = p.metas[p.metas.length - 1];
 
-      if (mostRecent.context.discord) {
+      if (isDiscordBot(mostRecent)) {
         return;
       }
 
@@ -134,7 +138,7 @@ class ReticulumChannel extends EventEmitter {
       const state = this.presence.state[id];
       const mostRecentMeta = state.metas[state.metas.length - 1];
 
-      if (!mostRecentMeta.context.discord) {
+      if (!isDiscordBot(mostRecentMeta)) {
         result[id] = state;
       }
     }
@@ -148,7 +152,7 @@ class ReticulumChannel extends EventEmitter {
       const state = this.presence.state[id];
       const mostRecentMeta = state.metas[state.metas.length - 1];
 
-      if (!mostRecentMeta.context.discord) {
+      if (!isDiscordBot(mostRecentMeta)) {
         result++;
       }
     }
