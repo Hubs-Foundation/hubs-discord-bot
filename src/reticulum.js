@@ -169,10 +169,11 @@ class ReticulumChannel extends EventEmitter {
 // State related to the Phoenix connection to Reticulum, independent of any particular Phoenix channel.
 class ReticulumClient {
 
-  constructor(hostname) {
+  constructor(hostname, logger) {
     this.hostname = hostname;
     this.socket = new phoenix.Socket(`wss://${hostname}/socket`, {
       transport: WebSocket,
+      logger
     });
   }
 

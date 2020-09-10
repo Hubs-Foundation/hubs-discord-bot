@@ -24,6 +24,13 @@ moment.tz.setDefault(process.env.TIMEZONE);
 moment.locale(process.env.LOCALE);
 
 const VERBOSE = (process.env.VERBOSE === "true");
+
+function logger(kind, msg, data) {
+  if ((kind !== "push" && kind !== "receive") || VERBOSE) {
+    console.log("Phoenix:", kind, msg, data);
+  }
+}
+
 const HOSTNAMES = process.env.HUBS_HOSTS.split(",");
 const MEDIA_DEDUPLICATE_MS = 60 * 60 * 1000; // 1 hour
 const IMAGE_URL_RE = /\.(png)|(gif)|(jpg)|(jpeg)$/;
@@ -447,7 +454,7 @@ async function start() {
   console.info(ts(`Connected to Discord (shard ID: ${shardId}/${shardCount})...`));
 
   const reticulumHost = process.env.RETICULUM_HOST;
-  const reticulumClient = new ReticulumClient(reticulumHost);
+  const reticulumClient = new ReticulumClient(reticulumHost, logger);
   await reticulumClient.connect();
   console.info(ts(`Connected to Reticulum @ ${reticulumHost}.`));
 
