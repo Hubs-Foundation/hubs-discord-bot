@@ -6,7 +6,7 @@ pkg_license=('MPL2')
 pkg_description="Discord bot for Hubs by Mozilla"
 
 pkg_deps=(
-  core/coreutils
+  core/coreutils/8.30/20190115012313
   core/node/12.9.0/20190827002349
 )
 
