@@ -17,6 +17,7 @@ export TIMEZONE="{{ cfg.general.timezone }}"
 export STATSD_HOST="{{ cfg.general.statsd_host }}"
 export STATSD_PREFIX="{{ cfg.general.statsd_prefix }}"
 export DEFAULT_SCENE_URL="{{ cfg.general.default_scene_url }}"
+export SENTRY_DSN="{{ cfg.general.sentry_dsn }}"
 
 cd {{pkg.svc_path}}
 
