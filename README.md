@@ -105,3 +105,79 @@ To simply run the bot process:
 [invite-page]: https://hubs.mozilla.com/discord
 [hubs-discord]: https://discord.gg/wHmY4nd
 [bot-invite]: mailto:hubs@mozilla.com
+
+## Deploying to hubs.mozilla.com
+
+The Hubs Discord Bot doesn't have a Jenkins job to build it yet. SO we need to build it manually.
+
+### Prerequisites
+You'll need the [Habitat CLI](https://www.habitat.sh/docs/install-habitat/) installed locally.
+
+You'll also need access to the Habitat Builder Token. Ask someone for help with that.
+
+
+### Import the Habitat Builder Keys
+
+Ask someone about getting the private key.
+
+You'll download it and then feed it into Habitat using:
+
+```bash
+hab origin key import path/to/mozillareality.sig.key
+```
+
+Then for the public key run:
+
+```bash
+hab origin key download mozillareality
+```
+
+### Building the Habitat Package
+In the project directory run:
+
+```bash
+HAB_ORIGIN=mozillareality hab pkg build .
+```
+
+If everything builds successfully you should see a `/results` folder in the project directory. Take note of the `mozillareality-hubs-discord-bot-0.0.1-<version>-x86_64-linux.hart` file.
+
+We now need to upload that file to the habitat.sh repository.
+
+Run the following command in the project directory:
+
+```
+HAB_AUTH_TOKEN="<habitat builder token>" hab pkg upload ./results/mozillareality-hubs-discord-bot-0.0.1-<version>-x86_64-linux.hart
+```
+
+You should see a success message. Your uploaded package should be visible at: https://bldr.habitat.sh/#/pkgs/mozillareality/hubs-discord-bot/latest
+
+### Promoting the Habitat Package
+
+This step will promote the package to be live on hubs.mozilla.com
+
+Run this command to promote the package:
+
+```
+HAB_AUTH_TOKEN="<habitat builder token>" hab pkg promote mozillareality/hubs-discord-bot/0.0.1/<version> stable
+```
+
+To verify the install you can ssh into the box and tail journalctl. To do so run the following command in the `hubs-ops` directory.
+
+```
+./bin/ssh.sh discord prod
+```
+
+Once logged into the box run `journalctl -f` to tail the logs.
+
+You'll see a bunch of logs saying:
+
+```
+Connected to Hubs room
+```
+
+Some errors that are caused by users revoking access to the hubs bot or deleting their guild. These are normal.
+
+And finally:
+```
+Scan finished
+```
