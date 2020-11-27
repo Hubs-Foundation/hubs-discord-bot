@@ -59,15 +59,16 @@ if (statsdHost) {
 // and from a channel topic update, or from two channel topic updates in quick succession.
 class DiscordEventQueue {
 
-  constructor() {
+  constructor(id = "global") {
+    this.id = id;
     this.size = 0;
     this.curr = Promise.resolve();
     this._onSizeChanged();
   }
 
   _onSizeChanged() {
-    if (statsdClient != null) {
-      statsdClient.send("discord.queuesize", this.size, "g");
+    if (VERBOSE) {
+      console.log(`Event queue [${this.id}] size: ${this.size}`);
     }
   }
 
@@ -75,15 +76,52 @@ class DiscordEventQueue {
   enqueue(fn) {
     this.size += 1;
     this._onSizeChanged();
-    return this.curr = this.curr.then(_ => fn()).catch(e => console.error(ts(e.stack))).finally(() => {
-      this.size -= 1;
-      this._onSizeChanged();
-    });
+    return (this.curr = this.curr
+      .then(_ => fn())
+      .catch(e => {
+        console.error(ts(e.stack));
+      })
+      .finally(() => {
+        this.size -= 1;
+        this._onSizeChanged();
+      }));
   }
 
 }
 
-const q = new DiscordEventQueue();
+// Creates global an per channel event queues
+class DiscordEventQueueManager {
+  constructor() {
+    this.globalQueue = new DiscordEventQueue();
+    this.channelQueue = {};
+  }
+
+  enqueue(task, channelId = null) {
+    let queue = this.globalQueue;
+    if (channelId) {
+      if (this.channelQueue[channelId]) {
+        queue = this.channelQueue[channelId];
+      } else {
+        queue = this.channelQueue[channelId] = new DiscordEventQueue(channelId);
+      }
+    }
+    const ret = queue.enqueue(task).then(() => {
+      this._queueUpdated();
+    });
+    this._queueUpdated();
+    
+    return ret;
+  }
+
+  _queueUpdated() {
+    if (statsdClient != null) {
+      const size = this.globalQueue.size + Object.values(this.channelQueue).reduce((acc, item) => acc + item.size, 0);
+      statsdClient.send("discord.queuesize", size, "g");
+    }
+  }
+}
+
+const q = new DiscordEventQueueManager();
 
 // Prepends a timestamp to a string.
 function ts(str) {
@@ -468,7 +506,7 @@ async function start() {
   // one-time scan through all channels to look for existing bridges
   console.info(ts(`Scanning channel topics for Hubs hosts: ${HOSTNAMES.join(", ")}`));
   {
-    const textChannels = Array.from(discordClient.channels.filter(ch => ch.type === "text").values());
+    const textChannels = discordClient.channels.cache.array().filter(ch => ch.type === "text");
     const candidateBridges = findBridges(topicManager, textChannels);
 
     for (const [key, channels] of candidateBridges.entries()) {
@@ -498,7 +536,7 @@ async function start() {
           discord.Permissions.FLAGS.READ_MESSAGES,
           discord.Permissions.FLAGS.READ_MESSAGE_HISTORY
         ])) {
-          const pins = await discordCh.fetchPinnedMessages();
+          const pins = await discordCh.messages.fetchPinned();
           const notifications = pins.filter(msg => {
             return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
           });
@@ -528,6 +566,21 @@ async function start() {
     await msg.unpin();
   });
 
+  // Gets debug event and some rate limit events in the shape of a 429 message (ie. set channel topic)
+  discordClient.on("debug", (...args) => {
+    console.log("Debug: ", ...args);
+  });
+
+  // Gets rate limit events for some (not all) routes (ie. get channel pins)
+  discordClient.on("rateLimit", info => {
+    console.log(`Rate limit hit:`);
+    console.log(`\ttimeout: ${info.timeout}`);
+    console.log(`\tlimit: ${info.limit}`);
+    console.log(`\tmethod: ${info.method}`);
+    console.log(`\tpath: ${info.path}`);
+    console.log(`\troute: ${info.route}`);
+  });
+
   discordClient.on('webhookUpdate', (discordCh) => {
     q.enqueue(async () => {
       const hubState = bridges.getHub(discordCh.id);
@@ -549,7 +602,7 @@ async function start() {
           }
         }
       }
-    });
+    }, discordCh.id);
   });
 
   discordClient.on('channelUpdate', (oldChannel, newChannel) => {
@@ -590,7 +643,7 @@ async function start() {
         const currHubDesc = currHubId != null ? currHubId : "nowhere";
         console.error(ts(`Failed to update ${formatDiscordCh(newChannel)} bridge from ${prevHubDesc} to ${currHubDesc}:`), e);
       }
-    });
+    }, oldChannel.id);
   });
 
   const HELP_PREFIX = "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (<https://hubs.mozilla.com/>). Type `!hubs help` for more information.";
@@ -770,7 +823,7 @@ async function start() {
           return discordCh.send(COMMAND_HELP_TEXT);
         }
         if (args.length === 3) { // !hubs notify clear
-          const pins = await discordCh.fetchPinnedMessages();
+          const pins = await discordCh.messages.fetchPinned();
           const notifications = pins.filter(msg => {
             return msg.author.id === discordClient.user.id && NotificationManager.parseTimestamp(msg).isValid();
           });
@@ -793,6 +846,7 @@ async function start() {
           if (await tryPin(discordCh, msg) != null) {
             notificationManager.add(when, msg);
           }
+          return;
         }
       }
 
@@ -813,7 +867,7 @@ async function start() {
 
       }
 
-    });
+    }, discordCh.id);
 
   });
 }
