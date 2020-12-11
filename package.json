@@ -1,6 +1,6 @@
 {
   "name": "hubs-discord-bot",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "description": "A Discord bot that does helpful things related to Hubs rooms.",
   "repository": "github:MozillaReality/hubs-discord-bot",
   "main": "src/index.js",
