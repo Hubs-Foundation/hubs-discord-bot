@@ -1,7 +1,7 @@
 pkg_name=hubs-discord-bot
 pkg_origin=mozillareality
 pkg_maintainer="Mozilla Mixed Reality <mixreality@mozilla.com>"
-pkg_version="0.0.2"
+pkg_version="0.0.5"
 pkg_license=('MPL2')
 pkg_description="Discord bot for Hubs by Mozilla"
 

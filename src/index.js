@@ -67,9 +67,7 @@ class DiscordEventQueue {
   }
 
   _onSizeChanged() {
-    if (VERBOSE) {
-      console.log(`Event queue [${this.id}] size: ${this.size}`);
-    }
+    console.log(`Event queue [${this.id}] size: ${this.size}`);
   }
 
   // Enqueues the given function to run as soon as no other functions are currently running.
@@ -79,7 +77,7 @@ class DiscordEventQueue {
     return (this.curr = this.curr
       .then(_ => fn())
       .catch(e => {
-        console.error(ts(e.stack));
+        console.error(`Event queue [${this.id}] exception: ${ts(e.stack)}`);
       })
       .finally(() => {
         this.size -= 1;
@@ -267,120 +265,144 @@ async function establishBridging(hubState, bridges) {
 
   const lastPresenceMessages = {}; // { discordCh: message object }
   presenceRollups.on('new', ({ kind, users, fresh }) => {
-    if (statsdClient != null) {
-      statsdClient.send("reticulum.presencechanges", 1, "c");
-    }
-    for (const discordCh of bridges.getChannels(hubState.id).values()) {
-      if (VERBOSE) {
-        console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+    try {
+      if (statsdClient != null) {
+        statsdClient.send("reticulum.presencechanges", 1, "c");
       }
-      if (kind === "arrive") {
-        const msg = fresh ?
-          `${formatList(users)} joined the Hubs room. Join them: ${hubState.shortUrl}` :
-          `${formatList(users)} joined the Hubs room.`;
-        lastPresenceMessages[discordCh.id] = discordCh.send(msg);
-      } else if (kind === "depart") {
-        const msg = `${formatList(users)} left the Hubs room.`;
-        lastPresenceMessages[discordCh.id] = discordCh.send(msg);
-      } else if (kind === "rename") {
-        lastPresenceMessages[discordCh.id] = discordCh.send(formatRename(users[0]));
+      for (const discordCh of bridges.getChannels(hubState.id).values()) {
+        if (VERBOSE) {
+          console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+        }
+        if (kind === "arrive") {
+          const msg = fresh ?
+            `${formatList(users)} joined the Hubs room. Join them: ${hubState.shortUrl}` :
+            `${formatList(users)} joined the Hubs room.`;
+          lastPresenceMessages[discordCh.id] = discordCh.send(msg);
+        } else if (kind === "depart") {
+          const msg = `${formatList(users)} left the Hubs room.`;
+          lastPresenceMessages[discordCh.id] = discordCh.send(msg);
+        } else if (kind === "rename") {
+          lastPresenceMessages[discordCh.id] = discordCh.send(formatRename(users[0]));
+        }
       }
+    } catch (e) {
+      console.error(ts(`Error relaying presence ${kind} in ${hubState.id}.`), e);
     }
   });
   presenceRollups.on('update', ({ kind, users, fresh }) => {
-    if (statsdClient != null) {
-      statsdClient.send("reticulum.presencechanges", 1, "c");
-    }
-    for (const discordCh of bridges.getChannels(hubState.id).values()) {
-      if (VERBOSE) {
-        console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+    try {
+      if (statsdClient != null) {
+        statsdClient.send("reticulum.presencechanges", 1, "c");
       }
-      if (kind === "arrive") {
-        const msg = fresh ?
-          `${formatList(users)} joined the Hubs room. Join them: ${hubState.shortUrl}` :
-          `${formatList(users)} joined the Hubs room.`;
-        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(msg));
-      } else if (kind === "depart") {
-        const msg = `${formatList(users)} left the Hubs room.`;
-        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(msg));
-      } else if (kind === "rename") {
-        lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(formatRename(users[0])));
+      for (const discordCh of bridges.getChannels(hubState.id).values()) {
+        if (VERBOSE) {
+          console.debug(ts(`Relaying presence ${kind} in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+        }
+        if (kind === "arrive") {
+          const msg = fresh ?
+            `${formatList(users)} joined the Hubs room. Join them: ${hubState.shortUrl}` :
+            `${formatList(users)} joined the Hubs room.`;
+          lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(msg));
+        } else if (kind === "depart") {
+          const msg = `${formatList(users)} left the Hubs room.`;
+          lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(msg));
+        } else if (kind === "rename") {
+          lastPresenceMessages[discordCh.id] = lastPresenceMessages[discordCh.id].then(prev => prev.edit(formatRename(users[0])));
+        }
       }
+    } catch (e) {
+      console.error(ts(`Error relaying presence update ${kind} in ${hubState.id}.`), e);
     }
   });
 
   reticulumCh.on('rescene', (timestamp, id, whom, scene) => {
-    for (const discordCh of bridges.getChannels(hubState.id).values()) {
-      if (VERBOSE) {
-        console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+    try {
+      for (const discordCh of bridges.getChannels(hubState.id).values()) {
+        if (VERBOSE) {
+          console.debug(ts(`Relaying scene change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+        }
+        if (scene) {
+          discordCh.send(`${whom} changed the scene in ${hubState.shortUrl} to ${scene.name}.`);
+        } else {
+          // the API response has a totally convoluted structure we could use to dig up the scene URL in theory,
+          // but it doesn't seem worth reproducing the dozen lines of hubs code that does this here
+          discordCh.send(`${whom} changed ${hubState.shortUrl} to a new scene.`);
+        }
       }
-      if (scene) {
-        discordCh.send(`${whom} changed the scene in ${hubState.shortUrl} to ${scene.name}.`);
-      } else {
-        // the API response has a totally convoluted structure we could use to dig up the scene URL in theory,
-        // but it doesn't seem worth reproducing the dozen lines of hubs code that does this here
-        discordCh.send(`${whom} changed ${hubState.shortUrl} to a new scene.`);
-      }
+    } catch (e) {
+      console.error(ts(`Error relaying presence scene change by ${whom} (${id}) in ${hubState.id}.`), e);
     }
   });
   reticulumCh.on('renamehub', (timestamp, id, whom, name, slug) => {
-    for (const discordCh of bridges.getChannels(hubState.id).values()) {
-      hubState.name = name;
-      hubState.slug = slug;
-      if (VERBOSE) {
-        console.debug(ts(`Relaying name change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+    try {
+      for (const discordCh of bridges.getChannels(hubState.id).values()) {
+        hubState.name = name;
+        hubState.slug = slug;
+        if (VERBOSE) {
+          console.debug(ts(`Relaying name change by ${whom} (${id}) in ${hubState.id} to ${formatDiscordCh(discordCh)}.`));
+        }
+        discordCh.send(`${whom} renamed the Hubs room at ${hubState.shortUrl} to ${hubState.name}.`);
       }
-      discordCh.send(`${whom} renamed the Hubs room at ${hubState.shortUrl} to ${hubState.name}.`);
+    } catch (e) {
+      console.error(ts(`Error relaying name change by ${whom} (${id}) in ${hubState.id}.`), e);
     }
   });
 
   const mediaBroadcasts = {}; // { url: timestamp }
   reticulumCh.on("message", (timestamp, id, whom, type, body) => {
-    if (statsdClient != null) {
-      statsdClient.send("reticulum.contentmsgs", 1, "c");
-    }
-    if (type === "media") {
-      // we really like to deduplicate media broadcasts of the same object in short succession,
-      // mostly because of the case where people are repositioning pinned media, but also because
-      // sometimes people will want to clone a bunch of one thing and pin them all in one go
-      const lastBroadcast = mediaBroadcasts[body.src];
-      if (lastBroadcast != null) {
-        const elapsedMs = timestamp - lastBroadcast;
-        if (elapsedMs <= MEDIA_DEDUPLICATE_MS) {
+    try {
+      if (statsdClient != null) {
+        statsdClient.send("reticulum.contentmsgs", 1, "c");
+      }
+      if (type === "media") {
+        // we really like to deduplicate media broadcasts of the same object in short succession,
+        // mostly because of the case where people are repositioning pinned media, but also because
+        // sometimes people will want to clone a bunch of one thing and pin them all in one go
+        const lastBroadcast = mediaBroadcasts[body.src];
+        if (lastBroadcast != null) {
+          const elapsedMs = timestamp - lastBroadcast;
+          if (elapsedMs <= MEDIA_DEDUPLICATE_MS) {
+            if (VERBOSE) {
+              console.debug(ts(`Declining to rebroadcast ${body.src} only ${(elapsedMs / 1000).toFixed(0)} second(s) after previous broadcast.`));
+            }
+            return;
+          }
+        } else {
+          mediaBroadcasts[body.src] = timestamp;
+        }
+      }
+      for (const discordCh of bridges.getChannels(hubState.id).values()) {
+        const webhook = ACTIVE_WEBHOOKS[discordCh.id]; // note that this may change over the lifetime of the bridge
+        if (webhook == null) {
           if (VERBOSE) {
-            console.debug(ts(`Declining to rebroadcast ${body.src} only ${(elapsedMs / 1000).toFixed(0)} second(s) after previous broadcast.`));
+            console.debug(`Ignoring message of type ${type} in ${formatDiscordCh(discordCh)} because no webhook is associated.`);
           }
           return;
         }
-      } else {
-        mediaBroadcasts[body.src] = timestamp;
-      }
-    }
-    for (const discordCh of bridges.getChannels(hubState.id).values()) {
-      const webhook = ACTIVE_WEBHOOKS[discordCh.id]; // note that this may change over the lifetime of the bridge
-      if (webhook == null) {
         if (VERBOSE) {
-          console.debug(`Ignoring message of type ${type} in ${formatDiscordCh(discordCh)} because no webhook is associated.`);
+          const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${hubState.id} to ${formatDiscordCh(discordCh)}: %j`);
+          console.debug(msg, body);
         }
-        return;
+        if (type === "chat") {
+          webhook.send(body, { username: whom });
+        } else if (type === "media") {
+          webhook.send(body.src, { username: whom });
+        } else if (type === "photo" || type == "video") {
+          // we like to just broadcast all camera photos and videos, without waiting for anyone to pin them
+          webhook.send(body.src, { username: whom });
+        }
       }
-      if (VERBOSE) {
-        const msg = ts(`Relaying message of type ${type} from ${whom} (${id}) via ${hubState.id} to ${formatDiscordCh(discordCh)}: %j`);
-        console.debug(msg, body);
-      }
-      if (type === "chat") {
-        webhook.send(body, { username: whom });
-      } else if (type === "media") {
-        webhook.send(body.src, { username: whom });
-      } else if (type === "photo" || type == "video") {
-        // we like to just broadcast all camera photos and videos, without waiting for anyone to pin them
-        webhook.send(body.src, { username: whom });
-      }
+    } catch (e) {
+      console.error(ts(`Error relaying message of type ${type} from ${whom} (${id}) via ${hubState.id}.`), e);
     }
   });
 
   reticulumCh.on('sync', async () => {
-    await updateChannelPresenceIcons(bridges.getChannels(hubState.id).values(), reticulumCh.getUserCount() > 0);
+    try {
+      await updateChannelPresenceIcons(bridges.getChannels(hubState.id).values(), reticulumCh.getUserCount() > 0);
+    } catch (e) {
+      console.error(ts(`Error updating channel presence icons in ${hubState.id}`), e);
+    }
   });
 
   // also get it right for the initial state
@@ -562,12 +584,21 @@ async function start() {
     }
     const hubState = bridges.getHub(msg.channel.id);
     const description = hubState != null ? `the Hubs room: ${hubState.shortUrl}` : "a Hubs room.";
-    await msg.channel.send(`@here Hey! You should join ${description}`, { disableEveryone: false });
-    await msg.unpin();
+    try {
+      await msg.channel.send(`@here Hey! You should join ${description}`, { disableEveryone: false });
+      await msg.unpin();
+    } catch(e) {
+      console.error(ts(`Error sending notification in channel ${formatDiscordCh(msg.channel)}:`), e);
+    }
   });
 
   // Gets debug event and some rate limit events in the shape of a 429 message (ie. set channel topic)
   discordClient.on("debug", (...args) => {
+    if (args[0].startsWith("429")) {
+      if (statsdClient != null) {
+        statsdClient.send("discord.error429", 1, "c");
+      }
+    }
     console.log("Debug: ", ...args);
   });
 
@@ -579,6 +610,9 @@ async function start() {
     console.log(`\tmethod: ${info.method}`);
     console.log(`\tpath: ${info.path}`);
     console.log(`\troute: ${info.route}`);
+    if (statsdClient != null) {
+      statsdClient.send("discord.rateLimit", 1, "c");
+    }
   });
 
   discordClient.on('webhookUpdate', (discordCh) => {
