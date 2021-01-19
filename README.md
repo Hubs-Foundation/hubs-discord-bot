@@ -25,7 +25,14 @@ The bot has two primary functions, both related to linking Discord text channels
 When you create a Hubs room using the `!hubs create` bot command, you establish a permanent association between the Hubs room and the Discord channel where you typed the command. This association will cause the Hubs room to use information from your Discord server to authenticate participants. Specifically:
 
 - People can only join the Hubs room via Discord OAuth, and only if they are a member of the channel that the Hubs room is associated with.
-- When they join, their permissions are based on their Discord roles. (People with Discord "manage channels" permission will be able to change the name and scene in the room, and people with Discord "kick users" permission will be able to kick and mute people in the Hubs room.)
+- When they join, their permissions are based on their Discord permissions 
+  - To enter the room they must have "View Channel" permission
+  - To be a moderator they must have "Kick Members" permission (and "View Channel").
+     - Moderators can kick and mute members in the hubs room. 
+     - Moderators can also create and manipulate objects, draw and share video even if these are turned off in the room settings.
+  - To be a room owner they must have "Manage Channels" (and "Kick Members and "View Channel")
+     - Room owners are able to change the name and scene in the room
+  - The discord permissions can set either via their discord role globally, or permissions given on the specific channel to that user/role
 - Their display name in the Hubs room will reflect their Discord display name.
 
 This only happens with rooms that you create using `!hubs create` -- simply bridging a room by putting it in the topic won't cause it to become permission-linked. This linkage will persist for the lifetime of the Hubs room -- if you don't like it, make a new Hubs room.
