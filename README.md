@@ -31,7 +31,7 @@ When you create a Hubs room using the `!hubs create` bot command, you establish 
      - Moderators can kick and mute members in the hubs room. 
      - Moderators can also create and manipulate objects, draw and share video even if these are turned off in the room settings.
   - To be a room owner they must have "Manage Channels" (and "Kick Members and "View Channel")
-     - Room owners are able to change the name and scene in the room
+     - Room owners are able to change the name and scene in the room, modify other room settings, and close the room.
   - The discord permissions can set either via their discord role globally, or permissions given on the specific channel to that user/role
 - Their display name in the Hubs room will reflect their Discord display name.
 
