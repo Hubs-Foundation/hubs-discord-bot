@@ -555,7 +555,6 @@ async function start() {
         const perms = discordCh.permissionsFor(discordClient.user);
         if (perms.has([
           discord.Permissions.FLAGS.MANAGE_MESSAGES,
-          discord.Permissions.FLAGS.READ_MESSAGES,
           discord.Permissions.FLAGS.READ_MESSAGE_HISTORY
         ])) {
           const pins = await discordCh.messages.fetchPinned();
