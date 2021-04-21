@@ -643,6 +643,7 @@ async function start() {
           } else if (newWebhook != null && (oldWebhook == null || newWebhook.id !== oldWebhook.id)) {
             await discordCh.send(`The webhook "${newWebhook.name}" (${newWebhook.id}) will now be used for bridging chat in Hubs.`);
           }
+          // eslint-disable-next-line require-atomic-updates
           ACTIVE_WEBHOOKS[discordCh.id] = newWebhook;
         } catch(e) {
           if (!(e instanceof discord.DiscordAPIError)) { // if we don't have webhook looking permissions just ignore
@@ -674,6 +675,7 @@ async function start() {
         if (currHubId != null && (prevHub == null || prevHub.id != currHubId)) {
           let currHub = connectedHubs[currHubId];
           if (currHub == null) {
+            // eslint-disable-next-line require-atomic-updates
             currHub = connectedHubs[currHubId] = await connectToHub(reticulumClient, [newChannel], currHubUrl.host, currHubId);
             await establishBridging(currHub, bridges);
             bridges.associate(currHub, newChannel);
