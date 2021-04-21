@@ -706,10 +706,10 @@ async function start() {
         "Valid environment URLs include GLTFs, GLBs, and Spoke scene pages.\n" +
         "🦆 `!hubs stats` - Shows some summary statistics about room usage.\n" +
         "🦆 `!hubs remove` - Removes the room URL from the topic and stops bridging this Discord channel with Hubs.\n" +
-        "🦆 `!hubs notify set [datetime]` - Sets a one-time notification to notify @here to join the room at some future time.\n" +
+        "🦆 `!hubs notify set [datetime]` - Sets a one-time notification to notify `@here` to join the room at some future time.\n" +
         "🦆 `!hubs notify clear` - Removes all pending notifications.\n" +
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
-        "See the documentation and source at https://github.com/MozillaReality/hubs-discord-bot for a more detailed reference " +
+        "See the documentation and source at <https://github.com/MozillaReality/hubs-discord-bot> for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
         "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
 
