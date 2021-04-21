@@ -26,7 +26,7 @@ moment.locale(process.env.LOCALE);
 const VERBOSE = (process.env.VERBOSE === "true");
 
 function logger(kind, msg, data) {
-  if ((kind !== "push" && kind !== "receive") || VERBOSE) {
+  if ((kind !== "push" && kind !== "receive" && msg !== "dropping outdated message") || VERBOSE) {
     console.log("Phoenix:", kind, msg, data);
   }
 }
@@ -67,7 +67,9 @@ class DiscordEventQueue {
   }
 
   _onSizeChanged() {
-    console.log(`Event queue [${this.id}] size: ${this.size}`);
+    if (this.size >= 5 || VERBOSE) {
+      console.log(`Event queue [${this.id}] size: ${this.size}`);
+    }
   }
 
   // Enqueues the given function to run as soon as no other functions are currently running.
