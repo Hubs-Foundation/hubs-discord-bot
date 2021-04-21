@@ -441,7 +441,18 @@ function scheduleSummaryPosting(bridges) {
 async function connectToHub(reticulumClient, discordChannels, host, hubId) {
   const reticulumCh = reticulumClient.channelForHub(hubId, serializeProfile("Hubs Bot", discordChannels));
   reticulumCh.on("connect", (timestamp, id) => { console.info(ts(`Connected to Hubs room ${hubId} with session ID ${id}.`)); });
-  const resp = (await reticulumCh.connect()).hubs[0];
+
+  let resp;
+  try {
+    resp = (await reticulumCh.connect()).hubs[0];
+  } catch(e) {
+    if (e.reason && (e.reason === "closed" || e.reason === "join_denied" || e.reason === "not_found")) {
+      await reticulumCh.close();
+    }
+
+    throw e;
+  }
+
   const stats = new HubStats();
   const presenceRollups = new PresenceRollups();
   let nRoomOccupants = 0;
