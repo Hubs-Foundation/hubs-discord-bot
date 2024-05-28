@@ -6,7 +6,7 @@
 
 **Note: self-hosting the bot and pointing it at production Hubs servers is currently broken. If you want to run the bot as-is, you'll need to also run your own Hubs server. We're trying to fix this.**
 
-A Discord bot that interacts with [Mozilla Hubs](https://hubs.mozilla.com). Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
+A Discord bot that interacts with Hubs. Mostly bridges information (chat, media links, joins/leaves), lets you see who is currently in Hubs from Discord and sets Hubs permissions and abilities based on Discord roles. Check out the bot in action on our own [Hubs community Discord][hubs-discord]!
 
 Discord
 - [What it does](#what-it-does)
@@ -111,11 +111,11 @@ To simply run the bot process:
 
 [npm]: https://nodejs.org/en/
 [discord-docs]: https://discordapp.com/developers/docs/intro
-[invite-page]: https://hubs.mozilla.com/discord
+[invite-page]: https://your-server.com/discord
 [hubs-discord]: https://discord.gg/wHmY4nd
-[bot-invite]: mailto:hubs@mozilla.com
+[bot-invite]: mailto:mail@your-server.com
 
-## Deploying to hubs.mozilla.com
+## Deploying to your-server.com
 
 The Hubs Discord Bot doesn't have a Jenkins job to build it yet. SO we need to build it manually.
 
@@ -132,42 +132,42 @@ Ask someone about getting the private key.
 You'll download it and then feed it into Habitat using:
 
 ```bash
-hab origin key import path/to/mozillareality.sig.key
+hab origin key import path/to/your-org.sig.key
 ```
 
 Then for the public key run:
 
 ```bash
-hab origin key download mozillareality
+hab origin key download your-org
 ```
 
 ### Building the Habitat Package
 In the project directory run:
 
 ```bash
-HAB_ORIGIN=mozillareality hab pkg build .
+HAB_ORIGIN=your-org hab pkg build .
 ```
 
-If everything builds successfully you should see a `/results` folder in the project directory. Take note of the `mozillareality-hubs-discord-bot-0.0.1-<version>-x86_64-linux.hart` file.
+If everything builds successfully you should see a `/results` folder in the project directory. Take note of the `your-org-hubs-discord-bot-0.0.1-<version>-x86_64-linux.hart` file.
 
 We now need to upload that file to the habitat.sh repository.
 
 Run the following command in the project directory:
 
 ```
-HAB_AUTH_TOKEN="<habitat builder token>" hab pkg upload ./results/mozillareality-hubs-discord-bot-0.0.1-<version>-x86_64-linux.hart
+HAB_AUTH_TOKEN="<habitat builder token>" hab pkg upload ./results/your-org-hubs-discord-bot-0.0.1-<version>-x86_64-linux.hart
 ```
 
-You should see a success message. Your uploaded package should be visible at: https://bldr.habitat.sh/#/pkgs/mozillareality/hubs-discord-bot/latest
+You should see a success message. Your uploaded package should be visible at: https://bldr.habitat.sh/#/pkgs/your-org/hubs-discord-bot/latest
 
 ### Promoting the Habitat Package
 
-This step will promote the package to be live on hubs.mozilla.com
+This step will promote the package to be live on your-server.com
 
 Run this command to promote the package:
 
 ```
-HAB_AUTH_TOKEN="<habitat builder token>" hab pkg promote mozillareality/hubs-discord-bot/0.0.1/<version> stable
+HAB_AUTH_TOKEN="<habitat builder token>" hab pkg promote your-org/hubs-discord-bot/0.0.1/<version> stable
 ```
 
 To verify the install you can ssh into the box and tail journalctl. To do so run the following command in the `hubs-ops` directory.

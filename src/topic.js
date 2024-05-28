@@ -66,7 +66,6 @@ class TopicManager {
     }
     try {
       const sceneUrl = new URL(sceneUrlStr);
-      // check for scene URL: https://hubs.mozilla.com/scenes/a0b1c2d/foo-bar
       const pathElements = splitPath(sceneUrl.pathname);
       if (pathElements.length >= 1) {
         const sceneId = pathElements[1]; // pathElements[0] === "scenes"
