@@ -696,7 +696,7 @@ async function start() {
     }, oldChannel.id);
   });
 
-  const HELP_PREFIX = "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs (<https://hubs.mozilla.com/>). Type `!hubs help` for more information.";
+  const HELP_PREFIX = "Hi! I'm the Hubs bot. I connect Discord channels with rooms on Hubs. Type `!hubs help` for more information.";
 
   const COMMAND_HELP_TEXT =
         "Command reference:\n\n" +
@@ -713,7 +713,7 @@ async function start() {
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
         "See the documentation and source at <https://github.com/MozillaReality/hubs-discord-bot> for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
-        "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://hubs.mozilla.com/discord.";
+        "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://your-server.com/discord.";
 
   discordClient.on('message', msg => {
     const args = msg.content.split(' ');
