@@ -1,39 +1,39 @@
 {
-  "name": "hubs-discord-bot",
-  "version": "0.0.5",
-  "description": "A Discord bot that does helpful things related to Hubs rooms.",
-  "repository": "github:MozillaReality/hubs-discord-bot",
-  "main": "src/index.js",
-  "scripts": {
-    "start": "node src/index.js",
-    "local": "NODE_TLS_REJECT_UNAUTHORIZED=0 npm start",
-    "lint": "eslint src",
-    "test": "tape tests/*.js"
-  },
-  "keywords": [
-    "hubs"
-  ],
-  "author": "Marshall Polaris <marshall@pol.rs>",
-  "license": "MPL-2.0",
-  "engines": {
-    "node": ">=8.0.0"
-  },
-  "dependencies": {
-    "@sentry/node": "^5.23.0",
-    "bufferutil": "^4.0.1",
-    "discord.js": "^12.4.1",
-    "dotenv": "^8.2.0",
-    "erlpack": "github:hammerandchisel/erlpack",
-    "escape-string-regexp": "^2.0.0",
-    "moment-timezone": "^0.5.27",
-    "node-schedule": "^1.3.2",
-    "phoenix": "^1.4.11",
-    "ws": "^6.2.1",
-    "zucc": "^0.1.2"
-  },
-  "devDependencies": {
-    "eslint": "^6.7.2",
-    "eslint-plugin-node": "^10.0.0",
-    "tape": "^4.11.0"
-  }
+	"name": "hubs-discord-bot",
+	"version": "0.0.5",
+	"description": "A Discord bot that does helpful things related to Hubs rooms.",
+	"repository": "github:Hubs-Foundation/hubs-discord-bot",
+	"main": "src/index.js",
+	"scripts": {
+		"start": "node src/index.js",
+		"local": "NODE_TLS_REJECT_UNAUTHORIZED=0 npm start",
+		"lint": "eslint src",
+		"test": "tape tests/*.js"
+	},
+	"keywords": [
+		"hubs"
+	],
+	"author": "Marshall Polaris <marshall@pol.rs>",
+	"license": "MPL-2.0",
+	"engines": {
+		"node": ">=8.0.0"
+	},
+	"dependencies": {
+		"@sentry/node": "^5.23.0",
+		"bufferutil": "^4.0.1",
+		"discord.js": "^12.4.1",
+		"dotenv": "^8.2.0",
+		"erlpack": "github:hammerandchisel/erlpack",
+		"escape-string-regexp": "^2.0.0",
+		"moment-timezone": "^0.5.27",
+		"node-schedule": "^1.3.2",
+		"phoenix": "^1.4.11",
+		"ws": "^6.2.1",
+		"zucc": "^0.1.2"
+	},
+	"devDependencies": {
+		"eslint": "^6.7.2",
+		"eslint-plugin-node": "^10.0.0",
+		"tape": "^4.11.0"
+	}
 }
