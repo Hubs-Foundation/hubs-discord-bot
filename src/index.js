@@ -711,7 +711,7 @@ async function start() {
         "🦆 `!hubs notify set [datetime]` - Sets a one-time notification to notify `@here` to join the room at some future time.\n" +
         "🦆 `!hubs notify clear` - Removes all pending notifications.\n" +
         "🦆 `!hubs users` - Lists the users currently in the Hubs room bridged to this channel.\n\n" +
-        "See the documentation and source at <https://github.com/MozillaReality/hubs-discord-bot> for a more detailed reference " +
+        "See the documentation and source at <https://github.com/Hubs-Foundation/hubs-discord-bot> for a more detailed reference " +
         "of bot functionality, including guidelines on what permissions the bot needs, what kinds of bridging the bot can do, " +
         "and more about how the bot bridges channels to rooms. You can invite the bot to your own server at https://your-server.com/discord.";
 
@@ -746,7 +746,7 @@ async function start() {
       if (!discordCh.guild) { // e.g. you DMed the bot
         return discordCh.send(HELP_PREFIX + "\n\n" +
           "I only work in public channels. Find a channel that you want to be bridged to a Hubs room and talk to me there.\n\n" +
-          "If you're curious about what I do, try `!hubs help` or check out https://github.com/MozillaReality/hubs-discord-bot."
+          "If you're curious about what I do, try `!hubs help` or check out https://github.com/Hubs-Foundation/hubs-discord-bot."
         );
       }
 
