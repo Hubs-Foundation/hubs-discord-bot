@@ -1,6 +1,6 @@
 [general]
 
-reticulum_host = "dev.reticulum.io"
+reticulum_host = "dev.reticulum.io.invalid"
 statsd_host = "localhost:8125"
 statsd_prefix = "discordbot."
 hubs_hosts = "localhost,hubs.local"
@@ -10,4 +10,4 @@ shard_count = "1"
 verbose = "false"
 locale = "en-US"
 timezone = "America/Los_Angeles"
-default_scene_url = "https://asset-bundles-prod.reticulum.io/rooms/atrium/Atrium.bundle.json"
+default_scene_url = "https://asset-bundles-prod.reticulum.io.invalid/rooms/atrium/Atrium.bundle.json"
