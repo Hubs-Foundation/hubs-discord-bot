@@ -105,7 +105,7 @@ To simply run the bot process:
 
 1. Clone this repository.
 
-2. Install Node v22 (v22.14.0 or later) and the corresponding version of `npm`. The instructions [at the NPM website][npm] should suffice.
+2. Install Node v22 (v22.23.4 or later) and the corresponding version of `npm`. The instructions [at the NPM website][npm] should suffice.
 
 3. Install [Python 3][python] (whatever the latest release is should be fine).
 
